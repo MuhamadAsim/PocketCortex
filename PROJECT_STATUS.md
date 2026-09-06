@@ -40,16 +40,17 @@
   - [x] Configured `INTERNET` and OpenCL in `AndroidManifest.xml`.
   - [x] Verified zero TypeScript compilation errors (`npx tsc --noEmit`).
   - [x] Verified Android Metro JavaScript bundling.
-- [ ] **Step 2 — Types & Model Catalog**
-  - [ ] Create `src/types/models.ts` (`ModelDefinition`, `DownloadStatus`, `ChatMessage`).
-  - [ ] Create `src/constants/modelCatalog.ts` with the 3 verified models.
-- [ ] **Step 3 — MMKV Storage Layer**
-  - [ ] Create `src/storage/mmkv.ts` (single MMKV instance).
-  - [ ] Create `src/storage/modelStorage.ts` (downloaded models, local paths, progress).
-  - [ ] Create `src/storage/chatStorage.ts` (conversation history per model).
-- [ ] **Step 4 — Download Manager**
-  - [ ] Create `src/services/downloadManager.ts` (start, progress, pause, resume with Range headers, delete).
-  - [ ] Persist progress state in MMKV across restarts.
+- [x] **Step 2 — Types & Model Catalog**
+  - [x] Created `src/types/models.ts` (`ModelDefinition`, `DownloadStatus`, `ModelDownloadState`, `ChatMessage`, `ConversationHistory`).
+  - [x] Created `src/constants/modelCatalog.ts` with verified Hugging Face direct endpoints, exact file byte sizes, and helper functions (`getModelById`, `formatBytes`).
+- [x] **Step 3 — MMKV Storage Layer**
+  - [x] Created `src/storage/mmkv.ts` (single MMKV instance `localmind-rn-storage` and theme preference helpers).
+  - [x] Created `src/storage/modelStorage.ts` (persisting download state, local file paths, active model selection).
+  - [x] Created `src/storage/chatStorage.ts` (saving, loading, appending, and updating streamed chat messages per model).
+- [x] **Step 4 — Download Manager**
+  - [x] Created `src/services/downloadManager.ts` (start, progress, pause, resume with HTTP Range header, delete, disk sync, and event subscriptions).
+  - [x] Created `patches/@dr.pogodin+react-native-fs+2.40.2.patch` via `patch-package` to enable file appending in `Downloader.kt` on HTTP 206 / Range requests.
+  - [x] Persisted throttled progress in MMKV storage to preserve device flash lifetime and survive restarts.
 - [ ] **Step 5 — Llama Inference Service**
   - [ ] Create `src/services/llamaService.ts` (`loadModel`, `unloadModel`, `sendMessage` with streaming token callback).
   - [ ] Prompt template formatting per model.

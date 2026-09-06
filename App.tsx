@@ -11,6 +11,9 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { MODEL_CATALOG } from './src/constants/modelCatalog';
+import { getAllModelDownloadStates } from './src/storage/modelStorage';
+import { getDownloadState, syncDiskState } from './src/services/downloadManager';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';

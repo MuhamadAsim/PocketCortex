@@ -1,0 +1,14 @@
+diff --git a/node_modules/@dr.pogodin/react-native-fs/android/src/main/java/com/drpogodin/reactnativefs/Downloader.kt b/node_modules/@dr.pogodin/react-native-fs/android/src/main/java/com/drpogodin/reactnativefs/Downloader.kt
+index 4a78946..0d1b99f 100644
+--- a/node_modules/@dr.pogodin/react-native-fs/android/src/main/java/com/drpogodin/reactnativefs/Downloader.kt
++++ b/node_modules/@dr.pogodin/react-native-fs/android/src/main/java/com/drpogodin/reactnativefs/Downloader.kt
+@@ -92,7 +92,8 @@ class Downloader : AsyncTask<DownloadParams?, LongArray?, DownloadResult>() {
+                     BufferedInputStream(connection.inputStream, 8 * 1024)
+                 }
+ 
+-                output = FileOutputStream(param.dest)
++                val isAppend = statusCode == 206 || (param.headers != null && param.headers.hasKey("Range"))
++                output = FileOutputStream(param.dest, isAppend)
+                 val data = ByteArray(8 * 1024)
+                 var total: Long = 0
+                 var count: Int
