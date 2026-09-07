@@ -6,27 +6,26 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  Keyboard,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getModelById } from '../constants/modelCatalog';
 import { ChatMessage } from '../types/models';
 import {
   getChatMessages,
   saveChatMessages,
   appendChatMessage,
-  updateLastChatMessage,
+  updateChatMessageContent,
   clearChatMessages,
 } from '../storage/chatStorage';
 import { useLlama } from '../hooks/useLlama';
 import { ChatBubble } from '../components/ChatBubble';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, typography } from '../theme/theme';
-
 import { ChatScreenNavigationProps } from '../navigation/types';
 
 export interface ChatScreenProps {
@@ -49,15 +48,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   modelId: propModelId,
   onBack: propOnBack,
 }) => {
+  const insets = useSafeAreaInsets();
   const modelId = route?.params?.modelId || propModelId || '';
-  const handleBack = useCallback(() => {
-    if (navigation) {
-      navigation.goBack();
-    } else if (propOnBack) {
-      propOnBack();
-    }
-  }, [navigation, propOnBack]);
-
   const { theme, isDark } = useTheme();
   const model = getModelById(modelId);
 
@@ -69,6 +61,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   const [activeAssistantMsgId, setActiveAssistantMsgId] = useState<string | null>(
     null
   );
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -81,6 +74,14 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     generateCompletion,
     stopGeneration,
   } = useLlama();
+
+  const handleBack = useCallback(() => {
+    if (navigation) {
+      navigation.goBack();
+    } else if (propOnBack) {
+      propOnBack();
+    }
+  }, [navigation, propOnBack]);
 
   // Load model into RAM on mount if not already active
   useEffect(() => {
@@ -97,6 +98,27 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       flatListRef.current?.scrollToEnd({ animated });
     }, 100);
   }, []);
+
+  // Keyboard show/hide listener to adjust bottom clearance smoothly on Android
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+        scrollToBottom(true);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [scrollToBottom]);
 
   const handleClearChat = useCallback(() => {
     Alert.alert(
@@ -125,7 +147,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 
       setInputText('');
 
-      // Create and persist user message
+      // 1. Create and persist user message with role 'user'
       const userMsg: ChatMessage = {
         id: `user-${Date.now()}`,
         role: 'user',
@@ -133,11 +155,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         timestamp: Date.now(),
       };
 
-      const updatedWithUser = appendChatMessage(modelId, userMsg);
-      setMessages(updatedWithUser);
+      appendChatMessage(modelId, userMsg);
+      const withUser = [...messages, userMsg];
+      setMessages(withUser);
       scrollToBottom();
 
-      // Placeholder assistant message
+      // 2. Create and persist placeholder assistant message with role 'assistant'
       const assistantId = `assistant-${Date.now()}`;
       const placeholderAssistantMsg: ChatMessage = {
         id: assistantId,
@@ -146,7 +169,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         timestamp: Date.now(),
       };
 
-      const withPlaceholder = [...updatedWithUser, placeholderAssistantMsg];
+      appendChatMessage(modelId, placeholderAssistantMsg);
+      const withPlaceholder = [...withUser, placeholderAssistantMsg];
       setMessages(withPlaceholder);
       setActiveAssistantMsgId(assistantId);
       setStreamingContent('');
@@ -157,7 +181,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       try {
         await generateCompletion({
           modelId,
-          messages: updatedWithUser,
+          messages: withUser,
           onToken: (token: string) => {
             accumulated += token;
             setStreamingContent(accumulated);
@@ -176,16 +200,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           },
         });
 
-        // Persist completed response to MMKV
-        updateLastChatMessage(modelId, accumulated);
+        // Persist final assistant response by exact ID
+        updateChatMessageContent(modelId, assistantId, accumulated);
       } catch (err: any) {
         if (!accumulated) {
-          setMessages(prev =>
-            prev.filter(m => m.id !== assistantId)
+          // Remove empty placeholder from state and storage
+          setMessages(prev => prev.filter(m => m.id !== assistantId));
+          const currentStored = getChatMessages(modelId);
+          saveChatMessages(
+            modelId,
+            currentStored.filter(m => m.id !== assistantId)
           );
           Alert.alert('Inference Error', err?.message || 'Failed to generate response.');
         } else {
-          updateLastChatMessage(modelId, accumulated);
+          updateChatMessageContent(modelId, assistantId, accumulated);
         }
       } finally {
         setActiveAssistantMsgId(null);
@@ -197,6 +225,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       inputText,
       isGenerating,
       modelId,
+      messages,
       generateCompletion,
       scrollToBottom,
     ]
@@ -206,7 +235,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     try {
       await stopGeneration();
       if (activeAssistantMsgId && streamingContent) {
-        updateLastChatMessage(modelId, streamingContent);
+        updateChatMessageContent(modelId, activeAssistantMsgId, streamingContent);
       }
     } catch (err) {
       console.warn('Failed to stop generation:', err);
@@ -217,18 +246,17 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   }, [stopGeneration, activeAssistantMsgId, streamingContent, modelId]);
 
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: theme.background }]}
-    >
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Screen Header */}
+      {/* Screen Header with proper top inset */}
       <View
         style={[
           styles.header,
           {
             backgroundColor: theme.surface,
             borderBottomColor: theme.divider,
+            paddingTop: Math.max(insets.top, 12) + spacing.xs,
           },
         ]}
       >
@@ -236,6 +264,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           style={styles.backButton}
           activeOpacity={0.7}
           onPress={handleBack}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Text style={[styles.backButtonText, { color: theme.primary }]}>
             ‹ Back
@@ -252,15 +281,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           <View style={styles.statusRow}>
             {isModelLoading ? (
               <Text style={[styles.statusText, { color: theme.warning }]}>
-                Loading context {loadProgress}%...
+                ⏳ Loading context {loadProgress}%...
               </Text>
             ) : isGenerating ? (
               <Text style={[styles.statusText, { color: theme.primaryLight }]}>
-                ● Thinking...
+                ⚡ Generating...
               </Text>
             ) : (
               <Text style={[styles.statusText, { color: theme.success }]}>
-                ● Offline Ready ({model?.quantLabel})
+                ● Ready ({model?.quantLabel || 'Offline'})
               </Text>
             )}
           </View>
@@ -270,6 +299,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           style={styles.clearButton}
           activeOpacity={0.7}
           onPress={handleClearChat}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Text style={[styles.clearButtonText, { color: theme.error }]}>
             Clear
@@ -280,9 +310,10 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       {/* Keyboard Avoiding Container */}
       <KeyboardAvoidingView
         style={styles.flexOne}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {/* Messages List or Starter Screen */}
+        {/* Messages List or Empty State */}
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View
@@ -297,7 +328,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
               {model?.name}
             </Text>
             <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-              Running 100% locally on your device.{'\n'}No data leaves this phone.
+              100% Private & Offline inference.{'\n'}No telemetry, no internet required.
             </Text>
 
             <View style={styles.promptSuggestions}>
@@ -307,7 +338,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                   { color: theme.textMuted },
                 ]}
               >
-                TRY ASKING:
+                PROMPT IDEAS:
               </Text>
               {STARTER_PROMPTS.map((prompt, index) => (
                 <TouchableOpacity
@@ -319,7 +350,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                       borderColor: theme.cardBorder,
                     },
                   ]}
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                   onPress={() => handleSend(prompt)}
                 >
                   <Text
@@ -338,6 +369,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
             keyExtractor={item => item.id}
             contentContainerStyle={styles.messageList}
             onContentSizeChange={() => scrollToBottom(false)}
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => {
               const isStreamingThis = item.id === activeAssistantMsgId;
               return (
@@ -351,13 +384,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           />
         )}
 
-        {/* Input Bar */}
+        {/* Floating Input Bar */}
         <View
           style={[
             styles.inputContainer,
             {
               backgroundColor: theme.surface,
               borderTopColor: theme.divider,
+              paddingBottom: isKeyboardVisible
+                ? spacing.sm
+                : Math.max(insets.bottom, spacing.sm),
             },
           ]}
         >
@@ -419,7 +455,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
               <Text
                 style={[
                   styles.actionButtonText,
-                  { color: theme.primaryForeground },
+                  {
+                    color:
+                      inputText.trim().length > 0 && !isModelLoading
+                        ? theme.primaryForeground
+                        : theme.textMuted,
+                  },
                 ]}
               >
                 ▲ Send
@@ -428,12 +469,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           )}
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  root: {
     flex: 1,
   },
   flexOne: {
@@ -444,7 +485,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
+    paddingBottom: spacing.sm + 4,
     borderBottomWidth: 1,
   },
   backButton: {
@@ -482,8 +523,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   messageList: {
-    padding: spacing.md,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
   emptyContainer: {
     flex: 1,
@@ -492,15 +534,15 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   emptyIconCircle: {
-    width: 60,
-    height: 60,
+    width: 64,
+    height: 64,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
   emptyIconText: {
-    fontSize: 28,
+    fontSize: 30,
   },
   emptyTitle: {
     ...typography.titleMedium,
@@ -511,6 +553,7 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     textAlign: 'center',
     marginBottom: spacing.xl,
+    lineHeight: 20,
   },
   promptSuggestions: {
     width: '100%',
@@ -536,29 +579,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
     gap: spacing.sm,
   },
   textInput: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     maxHeight: 120,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     borderWidth: 1,
-    fontSize: 14,
+    fontSize: 14.5,
   },
   actionButton: {
-    height: 40,
+    height: 44,
     paddingHorizontal: spacing.md + 2,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionButtonText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
   },
 });

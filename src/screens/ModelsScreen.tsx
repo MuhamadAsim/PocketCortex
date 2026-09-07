@@ -6,10 +6,10 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MODEL_CATALOG, formatBytes } from '../constants/modelCatalog';
 import { ModelDefinition, ModelDownloadState } from '../types/models';
 import {
@@ -29,7 +29,6 @@ import { useLlama } from '../hooks/useLlama';
 import { ModelCard } from '../components/ModelCard';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, typography } from '../theme/theme';
-
 import { ModelsScreenNavigationProps } from '../navigation/types';
 
 export interface ModelsScreenProps {
@@ -42,8 +41,8 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
   navigation,
   onOpenChat,
 }) => {
-  const { theme, isDark, themePreference, setThemePreference, toggleTheme } =
-    useTheme();
+  const insets = useSafeAreaInsets();
+  const { theme, isDark, toggleTheme } = useTheme();
 
   const [downloadStates, setDownloadStates] = useState<
     Record<string, ModelDownloadState>
@@ -212,16 +211,18 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
   }, [activeModelId]);
 
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: theme.background }]}
-    >
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Top App Header */}
+      {/* Top App Header with proper top safe inset */}
       <View
         style={[
           styles.header,
-          { backgroundColor: theme.surface, borderBottomColor: theme.divider },
+          {
+            backgroundColor: theme.surface,
+            borderBottomColor: theme.divider,
+            paddingTop: Math.max(insets.top, 14) + spacing.xs,
+          },
         ]}
       >
         <View style={styles.headerLeft}>
@@ -236,12 +237,12 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
               ]}
             >
               <Text style={[styles.offlineBadgeText, { color: theme.success }]}>
-                ● OFFLINE
+                ● 100% OFFLINE
               </Text>
             </View>
           </View>
           <Text style={[styles.brandSubtitle, { color: theme.textSecondary }]}>
-            On-Device Local AI • Private & Fast
+            On-Device Local AI • Private & Private
           </Text>
         </View>
 
@@ -252,9 +253,10 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
           ]}
           activeOpacity={0.7}
           onPress={toggleTheme}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={[styles.themeButtonText, { color: theme.textPrimary }]}>
-            {isDark ? '🌙 Dark' : '☀️ Light'}
+            {isDark ? '🌙' : '☀️'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -262,7 +264,12 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
       <FlatList
         data={MODEL_CATALOG}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          {
+            paddingBottom: Math.max(insets.bottom, 16) + spacing.xxxl,
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -288,12 +295,15 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
                   <Text
                     style={[styles.metricLabel, { color: theme.textMuted }]}
                   >
-                    MODELS DOWNLOADED
+                    MODELS READY
                   </Text>
                   <Text
                     style={[styles.metricValue, { color: theme.textPrimary }]}
                   >
-                    {downloadedCount} / {MODEL_CATALOG.length}
+                    {downloadedCount}{' '}
+                    <Text style={[styles.metricSub, { color: theme.textMuted }]}>
+                      / {MODEL_CATALOG.length}
+                    </Text>
                   </Text>
                 </View>
 
@@ -326,20 +336,20 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
                   styles.ramCard,
                   {
                     backgroundColor: theme.primaryLight + '15',
-                    borderColor: theme.primaryLight,
+                    borderColor: theme.primaryLight + '50',
                   },
                 ]}
               >
                 <View style={styles.ramInfo}>
                   <Text style={[styles.ramTitle, { color: theme.primaryLight }]}>
                     {isLlamaLoading
-                      ? `Loading into RAM... (${loadProgress}%)`
-                      : `Active in RAM: ${activeModel?.name}`}
+                      ? `⏳ Loading into RAM... (${loadProgress}%)`
+                      : `⚡ Active in RAM: ${activeModel?.name}`}
                   </Text>
                   <Text
                     style={[styles.ramSubtitle, { color: theme.textSecondary }]}
                   >
-                    Zero-latency inference ready.
+                    Zero-latency inference ready on CPU/GPU.
                   </Text>
                 </View>
 
@@ -382,7 +392,9 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
           };
 
           const isLoadedInRAM = activeModelId === item.id;
-          const isLoadingRAM = loadingRAMModelId === item.id || (isLlamaLoading && activeModelId === item.id);
+          const isLoadingRAM =
+            loadingRAMModelId === item.id ||
+            (isLlamaLoading && activeModelId === item.id);
 
           return (
             <ModelCard
@@ -399,12 +411,12 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
           );
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  root: {
     flex: 1,
   },
   header: {
@@ -412,7 +424,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
   },
   headerLeft: {
@@ -425,43 +437,51 @@ const styles = StyleSheet.create({
   },
   brandTitle: {
     ...typography.titleLarge,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   offlineBadge: {
-    paddingHorizontal: spacing.sm - 2,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: radius.xs,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   offlineBadgeText: {
     ...typography.caption,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   brandSubtitle: {
     ...typography.bodySmall,
     marginTop: 2,
+    fontSize: 12,
   },
   themeButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
   },
   themeButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 18,
   },
   listContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxxl,
+    paddingHorizontal: spacing.md + 2,
+    paddingTop: spacing.md,
   },
   listHeaderContainer: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   metricCard: {
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: spacing.lg,
+    paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
   },
   metricRow: {
@@ -475,21 +495,29 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     ...typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
     marginBottom: 4,
   },
   metricValue: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 19,
+    fontWeight: '800',
+  },
+  metricSub: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   metricDivider: {
     width: 1,
-    height: 32,
+    height: 36,
   },
   ramCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md - 2,
     borderRadius: radius.md,
     borderWidth: 1,
     marginBottom: spacing.md,
@@ -521,6 +549,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
 });

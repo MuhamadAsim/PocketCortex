@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ToastAndroid, Platform } from 'react-native';
 import { ChatMessage } from '../types/models';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, typography } from '../theme/theme';
@@ -18,6 +18,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   onCopy,
 }) => {
   const { theme } = useTheme();
+  const [copied, setCopied] = useState(false);
+
+  // Strictly distinguish user vs assistant vs system
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
 
@@ -25,6 +28,19 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  const handleCopy = useCallback(() => {
+    if (onCopy) {
+      onCopy(message.content);
+    }
+    setCopied(true);
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Message copied to clipboard', ToastAndroid.SHORT);
+    }
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+  }, [message.content, onCopy]);
 
   if (isSystem) {
     return (
@@ -36,7 +52,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           ]}
         >
           <Text style={[styles.systemText, { color: theme.textMuted }]}>
-            {message.content}
+            ℹ️ {message.content}
           </Text>
         </View>
       </View>
@@ -50,159 +66,261 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
         isUser ? styles.rowUser : styles.rowAssistant,
       ]}
     >
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onLongPress={() => onCopy && onCopy(message.content)}
+      {/* Assistant Avatar on Left */}
+      {!isUser && (
+        <View
+          style={[
+            styles.avatarCircle,
+            { backgroundColor: theme.primaryLight + '20', borderColor: theme.primaryLight + '40' },
+          ]}
+        >
+          <Text style={styles.avatarEmoji}>🤖</Text>
+        </View>
+      )}
+
+      {/* Bubble Container */}
+      <View
         style={[
-          styles.bubble,
-          isUser
-            ? [
-                styles.bubbleUser,
-                { backgroundColor: theme.primary },
-              ]
-            : [
-                styles.bubbleAssistant,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.cardBorder,
-                },
-              ],
+          styles.bubbleWrapper,
+          isUser ? styles.bubbleWrapperUser : styles.bubbleWrapperAssistant,
         ]}
       >
-        {/* Assistant Header Tag */}
-        {!isUser && (
-          <View style={styles.assistantHeader}>
-            <View
-              style={[
-                styles.avatarTag,
-                { backgroundColor: theme.primaryLight + '20' },
-              ]}
-            >
-              <Text style={[styles.avatarTagText, { color: theme.primaryLight }]}>
-                ⚡ {modelName || 'Local LLM'}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Message Content */}
-        <Text
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onLongPress={handleCopy}
           style={[
-            styles.messageText,
-            {
-              color: isUser ? theme.primaryForeground : theme.textPrimary,
-            },
+            styles.bubble,
+            isUser
+              ? [
+                  styles.bubbleUser,
+                  {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.primaryDark,
+                  },
+                ]
+              : [
+                  styles.bubbleAssistant,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.cardBorder,
+                  },
+                ],
           ]}
-          selectable
         >
-          {message.content}
-          {isStreaming && (
-            <Text style={[styles.cursor, { color: theme.primaryLight }]}>
-              {' ▋'}
-            </Text>
+          {/* Assistant Header Tag */}
+          {!isUser && (
+            <View style={styles.assistantHeader}>
+              <View
+                style={[
+                  styles.modelBadge,
+                  {
+                    backgroundColor: theme.badgeBg,
+                    borderColor: theme.badgeBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.modelBadgeText, { color: theme.primaryLight }]}>
+                  {modelName || 'Local AI'}
+                </Text>
+              </View>
+              {isStreaming && (
+                <View
+                  style={[
+                    styles.liveIndicator,
+                    { backgroundColor: theme.warningBg },
+                  ]}
+                >
+                  <Text style={[styles.liveIndicatorText, { color: theme.warning }]}>
+                    ● generating
+                  </Text>
+                </View>
+              )}
+            </View>
           )}
-        </Text>
 
-        {/* Timestamp */}
-        <View style={styles.footerRow}>
+          {/* Message Content */}
           <Text
             style={[
-              styles.timeText,
+              styles.messageText,
               {
-                color: isUser
-                  ? 'rgba(255, 255, 255, 0.7)'
-                  : theme.textMuted,
+                color: isUser ? theme.primaryForeground : theme.textPrimary,
               },
             ]}
+            selectable
           >
-            {formattedTime}
+            {message.content}
+            {isStreaming && (
+              <Text style={[styles.cursor, { color: theme.primaryLight }]}>
+                {' ▋'}
+              </Text>
+            )}
           </Text>
-        </View>
-      </TouchableOpacity>
+
+          {/* Footer with Timestamp and Copy action */}
+          <View style={styles.footerRow}>
+            <Text
+              style={[
+                styles.timeText,
+                {
+                  color: isUser
+                    ? 'rgba(255, 255, 255, 0.75)'
+                    : theme.textMuted,
+                },
+              ]}
+            >
+              {formattedTime}
+            </Text>
+
+            {!isUser && message.content.length > 0 && !isStreaming && (
+              <TouchableOpacity
+                onPress={handleCopy}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.copyButton}
+              >
+                <Text
+                  style={[
+                    styles.copyButtonText,
+                    { color: copied ? theme.success : theme.textMuted },
+                  ]}
+                >
+                  {copied ? '✓ Copied' : '📋 Copy'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   row: {
-    marginVertical: spacing.xs + 2,
+    marginVertical: 6,
     flexDirection: 'row',
+    alignItems: 'flex-end',
+    width: '100%',
   },
   rowUser: {
     justifyContent: 'flex-end',
-    paddingLeft: 48,
+    paddingLeft: 44,
   },
   rowAssistant: {
     justifyContent: 'flex-start',
-    paddingRight: 48,
+    paddingRight: 32,
+  },
+  avatarCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    marginBottom: 2,
+  },
+  avatarEmoji: {
+    fontSize: 16,
+  },
+  bubbleWrapper: {
+    maxWidth: '84%',
+  },
+  bubbleWrapperUser: {
+    alignItems: 'flex-end',
+  },
+  bubbleWrapperAssistant: {
+    alignItems: 'flex-start',
   },
   bubble: {
-    paddingHorizontal: spacing.md + 2,
-    paddingVertical: spacing.md - 2,
-    maxWidth: '100%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
     elevation: 1,
   },
   bubbleUser: {
+    borderBottomRightRadius: 3,
+    borderTopRightRadius: radius.lg,
     borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.xs,
     borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
   },
   bubbleAssistant: {
-    borderTopLeftRadius: radius.xs,
+    borderBottomLeftRadius: 3,
+    borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
-    borderWidth: 1,
   },
   assistantHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    justifyContent: 'space-between',
+    marginBottom: 6,
+    gap: 8,
   },
-  avatarTag: {
-    paddingHorizontal: spacing.sm,
+  modelBadge: {
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.xs,
+    borderWidth: 1,
   },
-  avatarTagText: {
-    fontSize: 10,
+  modelBadgeText: {
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+  },
+  liveIndicator: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radius.xs,
+  },
+  liveIndicatorText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   messageText: {
     ...typography.bodyLarge,
-    fontSize: 14.5,
-    lineHeight: 21,
+    fontSize: 15,
+    lineHeight: 22,
   },
   cursor: {
     fontWeight: '900',
   },
   footerRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: 4,
+    marginTop: 6,
+    gap: 10,
   },
   timeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
+  },
+  copyButton: {
+    paddingVertical: 1,
+    paddingHorizontal: 4,
+  },
+  copyButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   systemContainer: {
     alignItems: 'center',
     marginVertical: spacing.sm,
+    width: '100%',
   },
   systemPill: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: radius.full,
     borderWidth: 1,
   },
   systemText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500',
   },
 });

@@ -115,7 +115,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({
                 ]}
               >
                 <Text style={[styles.badgeText, { color: theme.primaryLight, fontWeight: '700' }]}>
-                  ⚡ IN RAM
+                  ⚡ ACTIVE IN RAM
                 </Text>
               </View>
             )}
@@ -133,11 +133,11 @@ export const ModelCard: React.FC<ModelCardProps> = ({
         {downloadState.status === 'not_downloaded' && (
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: theme.primary }]}
-            activeOpacity={0.8}
+            activeOpacity={0.82}
             onPress={() => onDownload(model)}
           >
             <Text style={[styles.primaryButtonText, { color: theme.primaryForeground }]}>
-              Download Model ({formatBytes(model.sizeBytes)})
+              ⬇️ Download Model ({formatBytes(model.sizeBytes)})
             </Text>
           </TouchableOpacity>
         )}
@@ -181,7 +181,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({
                     { color: theme.buttonSecondaryText },
                   ]}
                 >
-                  Pause
+                  ⏸ Pause
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -241,7 +241,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({
                     { color: theme.primaryForeground },
                   ]}
                 >
-                  Resume Download
+                  ▶ Resume Download
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -277,11 +277,21 @@ export const ModelCard: React.FC<ModelCardProps> = ({
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 style={[styles.chatButton, { backgroundColor: theme.primary }]}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={() => onSelectModel(model)}
               >
                 {isLoadingRAM ? (
-                  <ActivityIndicator color={theme.primaryForeground} size="small" />
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color={theme.primaryForeground} size="small" />
+                    <Text
+                      style={[
+                        styles.chatButtonText,
+                        { color: theme.primaryForeground, marginLeft: 8 },
+                      ]}
+                    >
+                      Loading to RAM...
+                    </Text>
+                  </View>
                 ) : (
                   <Text
                     style={[
@@ -289,7 +299,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({
                       { color: theme.primaryForeground },
                     ]}
                   >
-                    Chat Now
+                    💬 Chat with Model
                   </Text>
                 )}
               </TouchableOpacity>
@@ -301,6 +311,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({
                 ]}
                 activeOpacity={0.8}
                 onPress={confirmDelete}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text
                   style={[
@@ -332,7 +343,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({
                     { color: theme.primaryForeground },
                   ]}
                 >
-                  Retry Download
+                  ↻ Retry Download
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -364,16 +375,16 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     borderWidth: 1.5,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
+    padding: spacing.md + 2,
+    marginBottom: spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   header: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   titleContainer: {
     flexDirection: 'column',
@@ -381,46 +392,52 @@ const styles = StyleSheet.create({
   },
   modelName: {
     ...typography.titleMedium,
+    fontSize: 17,
+    fontWeight: '700',
   },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
+    gap: 6,
+    marginTop: 2,
   },
   badge: {
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.xs,
     borderWidth: 1,
   },
   badgeText: {
     ...typography.caption,
+    fontSize: 10.5,
+    fontWeight: '600',
   },
   description: {
     ...typography.bodyMedium,
+    fontSize: 13,
+    lineHeight: 18,
     marginTop: spacing.xs,
-    marginBottom: spacing.md,
+    marginBottom: spacing.md - 2,
   },
   actionContainer: {
     marginTop: spacing.xs,
   },
   primaryButton: {
-    paddingVertical: spacing.md,
+    paddingVertical: 11,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonSmall: {
     flex: 1,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: 10,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
   progressContainer: {
     gap: spacing.sm,
@@ -431,14 +448,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   bytesText: {
-    fontSize: 12,
+    fontSize: 11.5,
   },
   progressBarTrack: {
-    height: 8,
+    height: 7,
     borderRadius: radius.full,
     overflow: 'hidden',
     width: '100%',
@@ -454,7 +471,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: 10,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -464,8 +481,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dangerButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: 10,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -475,26 +492,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   downloadedContainer: {
-    gap: spacing.sm,
+    gap: spacing.sm - 2,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs + 2,
+    gap: 6,
+    marginBottom: 4,
   },
   statusDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: radius.full,
   },
   statusLabel: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
   },
   chatButton: {
     flex: 1,
-    paddingVertical: spacing.md - 2,
+    paddingVertical: 11,
     borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -503,8 +526,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   deleteIconButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md - 2,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: 11,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
