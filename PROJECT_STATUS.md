@@ -51,9 +51,11 @@
   - [x] Created `src/services/downloadManager.ts` (start, progress, pause, resume with HTTP Range header, delete, disk sync, and event subscriptions).
   - [x] Created `patches/@dr.pogodin+react-native-fs+2.40.2.patch` via `patch-package` to enable file appending in `Downloader.kt` on HTTP 206 / Range requests.
   - [x] Persisted throttled progress in MMKV storage to preserve device flash lifetime and survive restarts.
-- [ ] **Step 5 — Llama Inference Service**
-  - [ ] Create `src/services/llamaService.ts` (`loadModel`, `unloadModel`, `sendMessage` with streaming token callback).
-  - [ ] Prompt template formatting per model.
+- [x] **Step 5 — Llama Inference Service**
+  - [x] Created `src/utils/promptTemplates.ts` (`formatChatPrompt`, supporting `chatml`, `llama3`, and `gemma` formats with system prompt injection).
+  - [x] Created `src/services/llamaService.ts` (`loadModel`, `unloadModel`, `generateCompletion` with streaming token callback, `stopGeneration`, state subscriptions).
+  - [x] Created `src/hooks/useLlama.ts` (React hook for reactive model lifecycle and streaming generation).
+  - [x] Created unit tests `__tests__/promptTemplates.test.ts`.
 - [ ] **Step 6 — Models Screen UI**
   - [ ] List catalog models with live status badges and progress bar.
   - [ ] Download, Pause, Resume, Delete, and Chat actions.
