@@ -85,8 +85,8 @@
   - [x] Created `src/screens/KnowledgeScreen.tsx` for file management, chunk metrics, and embedding status.
   - [x] Updated `ChatScreen.tsx` with search toggle, camera image attach, thumbnail preview, and grounded context injection.
   - [x] Updated `ChatBubble.tsx` with image preview and collapsible `📚 X Sources Grounded` card.
-  - [x] Added ProGuard rules in `android/app/proguard-rules.pro`.
   - [x] Verified zero TypeScript errors (`npx tsc --noEmit`), passed all Jest unit tests (`npm test`), and verified clean Metro packaging.
+  - [x] Created `patches/react-native-document-picker+9.3.1.patch` via `patch-package` to replace removed `GuardedResultAsyncTask` with standard `ExecutorService` for React Native 0.87+ Android compilation.
 
 ---
 
