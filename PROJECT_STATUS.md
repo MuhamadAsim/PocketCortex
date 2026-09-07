@@ -56,15 +56,22 @@
   - [x] Created `src/services/llamaService.ts` (`loadModel`, `unloadModel`, `generateCompletion` with streaming token callback, `stopGeneration`, state subscriptions).
   - [x] Created `src/hooks/useLlama.ts` (React hook for reactive model lifecycle and streaming generation).
   - [x] Created unit tests `__tests__/promptTemplates.test.ts`.
-- [ ] **Step 6 — Models Screen UI**
-  - [ ] List catalog models with live status badges and progress bar.
-  - [ ] Download, Pause, Resume, Delete, and Chat actions.
-- [ ] **Step 7 — Chat Screen UI**
-  - [ ] Bubble list with streaming assistant responses.
-  - [ ] Input field, send button, stop generation, clear chat.
-- [ ] **Step 8 — Navigation & Theme**
-  - [ ] Stack navigator (Models -> Chat).
-  - [ ] Light / Dark theme system support with manual override.
+- [x] **Step 6 — Models Screen UI**
+  - [x] Created `src/theme/theme.ts` (obsidian dark mode, light mode, typography scale, spacing, radius).
+  - [x] Created `src/theme/ThemeContext.tsx` (`ThemeProvider` and `useTheme` hook with auto-detection & MMKV persistence).
+  - [x] Created `src/components/ModelCard.tsx` (rich card with parameter badges, live progress bar, pause/resume/delete, and chat action).
+  - [x] Created `src/screens/ModelsScreen.tsx` (header, storage summary metric, RAM status card with unload, pull-to-refresh disk sync).
+  - [x] Updated `App.tsx` to render `ThemeProvider` and `ModelsScreen`.
+- [x] **Step 7 — Chat Screen UI**
+  - [x] Created `src/components/ChatBubble.tsx` (user and assistant bubbles with speech styling, streaming cursor, model tag, timestamp).
+  - [x] Created `src/screens/ChatScreen.tsx` (live streaming FlatList, auto-scrolling, starter suggestions, multi-line auto-growing input, stop generation, clear chat).
+  - [x] Connected MMKV chat storage (`chatStorage.ts`) for instant conversation persistence.
+  - [x] Updated `App.tsx` with smooth screen switching between ModelsScreen and ChatScreen.
+- [x] **Step 8 — Navigation & Theme**
+  - [x] Created `src/navigation/types.ts` (`RootStackParamList`, type-safe navigation props).
+  - [x] Created `src/navigation/AppNavigator.tsx` (React Navigation Native Stack with custom theme & slide animations).
+  - [x] Updated `ModelsScreen.tsx` and `ChatScreen.tsx` to integrate with Native Stack.
+  - [x] Updated `App.tsx` to mount `AppNavigator`.
 
 ---
 
