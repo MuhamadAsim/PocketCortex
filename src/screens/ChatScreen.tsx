@@ -11,10 +11,12 @@ import {
   Platform,
   Keyboard,
   Alert,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DocumentPicker, { types } from 'react-native-document-picker';
 import { getModelById } from '../constants/modelCatalog';
-import { ChatMessage } from '../types/models';
+import { ChatMessage, GroundedSource } from '../types/models';
 import {
   getChatMessages,
   saveChatMessages,
@@ -27,9 +29,12 @@ import { ChatBubble } from '../components/ChatBubble';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, typography } from '../theme/theme';
 import { ChatScreenNavigationProps } from '../navigation/types';
+import { knowledgeService } from '../services/knowledgeService';
+import { formatRAGSystemPrompt } from '../utils/promptTemplates';
+import { useResourceGuard } from '../hooks/useResourceGuard';
 
 export interface ChatScreenProps {
-  navigation?: ChatScreenNavigationProps['navigation'];
+  navigation?: any;
   route?: ChatScreenNavigationProps['route'];
   modelId?: string;
   onBack?: () => void;
@@ -52,6 +57,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   const modelId = route?.params?.modelId || propModelId || '';
   const { theme, isDark } = useTheme();
   const model = getModelById(modelId);
+  const resourceState = useResourceGuard();
 
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     getChatMessages(modelId)
@@ -62,6 +68,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     null
   );
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isSearchEnabled, setIsSearchEnabled] = useState(true);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -140,12 +148,53 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     );
   }, [modelId]);
 
+  const handlePickImage = useCallback(async () => {
+    try {
+      const res = await DocumentPicker.pickSingle({
+        type: [types.images],
+        copyTo: 'cachesDirectory',
+      });
+      const uri = res.fileCopyUri || res.uri;
+      setSelectedImageUri(uri);
+    } catch (err) {
+      if (!DocumentPicker.isCancel(err)) {
+        Alert.alert('Error', 'Failed to pick image.');
+      }
+    }
+  }, []);
+
   const handleSend = useCallback(
     async (textToSend?: string) => {
+      if (resourceState.mode === 'INDEXING') {
+        Alert.alert(
+          'Resource Guard Active',
+          'Document indexing is currently active. Chat inference is paused to protect device memory.'
+        );
+        return;
+      }
+
       const content = (textToSend || inputText).trim();
-      if (!content || isGenerating) return;
+      const currentImage = selectedImageUri;
+      if ((!content && !currentImage) || isGenerating) return;
 
       setInputText('');
+      setSelectedImageUri(null);
+
+      // Perform RAG retrieval if search is enabled
+      let groundedSources: GroundedSource[] = [];
+      let systemPrompt: string | undefined;
+
+      if (isSearchEnabled && content) {
+        try {
+          const hits = await knowledgeService.searchKnowledge(content, 3);
+          if (hits && hits.length > 0) {
+            groundedSources = hits;
+            systemPrompt = formatRAGSystemPrompt(undefined, hits);
+          }
+        } catch (searchErr) {
+          console.warn('RAG Search warning:', searchErr);
+        }
+      }
 
       // 1. Create and persist user message with role 'user'
       const userMsg: ChatMessage = {
@@ -153,6 +202,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         role: 'user',
         content,
         timestamp: Date.now(),
+        imageUri: currentImage || undefined,
       };
 
       appendChatMessage(modelId, userMsg);
@@ -167,6 +217,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         role: 'assistant',
         content: '',
         timestamp: Date.now(),
+        sources: groundedSources.length > 0 ? groundedSources : undefined,
       };
 
       appendChatMessage(modelId, placeholderAssistantMsg);
@@ -179,9 +230,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       let accumulated = '';
 
       try {
+        let mediaPath = currentImage || undefined;
+        if (mediaPath && mediaPath.startsWith('file://')) {
+          mediaPath = mediaPath.slice(7);
+        }
+
         await generateCompletion({
           modelId,
           messages: withUser,
+          systemPrompt,
+          mediaPaths: mediaPath ? [mediaPath] : undefined,
           onToken: (token: string) => {
             accumulated += token;
             setStreamingContent(accumulated);
@@ -223,6 +281,9 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     },
     [
       inputText,
+      selectedImageUri,
+      isSearchEnabled,
+      resourceState.mode,
       isGenerating,
       modelId,
       messages,
@@ -307,6 +368,53 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         </TouchableOpacity>
       </View>
 
+      {/* Subheader: RAG Docs Search Toggle + Knowledge Base Shortcut */}
+      <View
+        style={[
+          styles.toolbar,
+          { backgroundColor: theme.surface, borderBottomColor: theme.divider },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => setIsSearchEnabled(!isSearchEnabled)}
+          style={[
+            styles.togglePill,
+            isSearchEnabled
+              ? { backgroundColor: theme.primaryLight + '20', borderColor: theme.primaryLight + '60' }
+              : { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder },
+          ]}
+        >
+          <Text
+            style={[
+              styles.togglePillText,
+              { color: isSearchEnabled ? theme.primaryLight : theme.textMuted },
+            ]}
+          >
+            {isSearchEnabled ? '🔍 Ground with Docs: ON' : '🔍 Ground with Docs: OFF'}
+          </Text>
+        </TouchableOpacity>
+
+        {navigation && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Knowledge')}
+            style={[styles.knowledgeButton, { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder }]}
+          >
+            <Text style={[styles.knowledgeButtonText, { color: theme.textSecondary }]}>
+              📚 Manage Docs
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Resource Guard Indexing Alert */}
+      {resourceState.mode === 'INDEXING' && (
+        <View style={[styles.guardNotice, { backgroundColor: theme.warningBg }]}>
+          <Text style={[styles.guardNoticeText, { color: theme.warning }]}>
+            🛡️ Indexing knowledge base ({resourceState.indexingProgress?.percent || 0}%). Chat is paused.
+          </Text>
+        </View>
+      )}
+
       {/* Keyboard Avoiding Container */}
       <KeyboardAvoidingView
         style={styles.flexOne}
@@ -384,6 +492,25 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           />
         )}
 
+        {/* Selected Image Thumbnail Preview */}
+        {selectedImageUri && (
+          <View style={[styles.imagePreviewBar, { backgroundColor: theme.surface, borderTopColor: theme.divider }]}>
+            <View style={styles.imageThumbContainer}>
+              <Image source={{ uri: selectedImageUri }} style={styles.imageThumb} />
+              <TouchableOpacity
+                onPress={() => setSelectedImageUri(null)}
+                style={[styles.removeImageBtn, { backgroundColor: theme.card }]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={[styles.removeImageBtnText, { color: theme.error }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.imageThumbLabel, { color: theme.textSecondary }]}>
+              Image attached for {model?.name}
+            </Text>
+          </View>
+        )}
+
         {/* Floating Input Bar */}
         <View
           style={[
@@ -397,6 +524,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
             },
           ]}
         >
+          {model?.isMultimodal && (
+            <TouchableOpacity
+              onPress={handlePickImage}
+              style={[
+                styles.attachButton,
+                { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder },
+              ]}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.attachButtonText}>📷</Text>
+            </TouchableOpacity>
+          )}
+
           <TextInput
             style={[
               styles.textInput,
@@ -409,6 +550,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
             placeholder={
               isModelLoading
                 ? 'Loading model into memory...'
+                : model?.isMultimodal
+                ? 'Type or attach an image...'
                 : 'Type a message...'
             }
             placeholderTextColor={theme.textMuted}
@@ -443,13 +586,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                 styles.actionButton,
                 {
                   backgroundColor:
-                    inputText.trim().length > 0 && !isModelLoading
+                    (inputText.trim().length > 0 || !!selectedImageUri) && !isModelLoading
                       ? theme.primary
                       : theme.badgeBorder,
                 },
               ]}
               activeOpacity={0.8}
-              disabled={inputText.trim().length === 0 || isModelLoading}
+              disabled={
+                (inputText.trim().length === 0 && !selectedImageUri) ||
+                isModelLoading
+              }
               onPress={() => handleSend()}
             >
               <Text
@@ -457,13 +603,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                   styles.actionButtonText,
                   {
                     color:
-                      inputText.trim().length > 0 && !isModelLoading
+                      (inputText.trim().length > 0 || !!selectedImageUri) && !isModelLoading
                         ? theme.primaryForeground
                         : theme.textMuted,
                   },
                 ]}
               >
-                ▲ Send
+                Send
               </Text>
             </TouchableOpacity>
           )}
@@ -603,5 +749,92 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 13.5,
     fontWeight: '700',
+  },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  togglePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  togglePillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  knowledgeButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  knowledgeButtonText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  guardNotice: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  guardNoticeText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  imagePreviewBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    gap: 10,
+  },
+  imageThumbContainer: {
+    position: 'relative',
+  },
+  imageThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.sm,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  removeImageBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  imageThumbLabel: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  attachButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  attachButtonText: {
+    fontSize: 18,
   },
 });

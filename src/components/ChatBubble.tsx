@@ -1,5 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ToastAndroid, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ToastAndroid,
+  Platform,
+  Image,
+} from 'react-native';
 import { ChatMessage } from '../types/models';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, typography } from '../theme/theme';
@@ -19,6 +27,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
 }) => {
   const { theme } = useTheme();
   const [copied, setCopied] = useState(false);
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
 
   // Strictly distinguish user vs assistant vs system
   const isUser = message.role === 'user';
@@ -138,6 +147,17 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
             </View>
           )}
 
+          {/* Attached Image Preview (for vision queries) */}
+          {message.imageUri && (
+            <View style={styles.imageContainer}>
+              <Image
+                source={{ uri: message.imageUri }}
+                style={styles.attachedImage}
+                resizeMode="cover"
+              />
+            </View>
+          )}
+
           {/* Message Content */}
           <Text
             style={[
@@ -155,6 +175,43 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
               </Text>
             )}
           </Text>
+
+          {/* Grounded RAG Sources Accordion */}
+          {!isUser && message.sources && message.sources.length > 0 && !isStreaming && (
+            <View style={styles.sourcesWrapper}>
+              <TouchableOpacity
+                onPress={() => setSourcesExpanded(!sourcesExpanded)}
+                style={[
+                  styles.sourcesPill,
+                  { backgroundColor: theme.primaryLight + '18', borderColor: theme.primaryLight + '35' },
+                ]}
+              >
+                <Text style={[styles.sourcesPillText, { color: theme.primaryLight }]}>
+                  📚 {message.sources.length} Sources Grounded {sourcesExpanded ? '▲' : '▼'}
+                </Text>
+              </TouchableOpacity>
+
+              {sourcesExpanded && (
+                <View
+                  style={[
+                    styles.sourcesCard,
+                    { backgroundColor: theme.surface, borderColor: theme.cardBorder },
+                  ]}
+                >
+                  {message.sources.map((src, i) => (
+                    <View key={`${src.docId}_${src.chunkIndex}_${i}`} style={styles.sourceItem}>
+                      <Text style={[styles.sourceItemTitle, { color: theme.primaryLight }]}>
+                        [Source {i + 1}]: {src.docName}
+                      </Text>
+                      <Text style={[styles.sourceItemExcerpt, { color: theme.textSecondary }]} numberOfLines={3}>
+                        "{src.excerpt}"
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Footer with Timestamp and Copy action */}
           <View style={styles.footerRow}>
@@ -322,5 +379,51 @@ const styles = StyleSheet.create({
   systemText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  imageContainer: {
+    marginBottom: 8,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  attachedImage: {
+    width: 210,
+    height: 140,
+    borderRadius: radius.md,
+  },
+  sourcesWrapper: {
+    marginTop: 8,
+  },
+  sourcesPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  sourcesPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  sourcesCard: {
+    marginTop: 6,
+    padding: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: 6,
+  },
+  sourceItem: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingBottom: 4,
+  },
+  sourceItemTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  sourceItemExcerpt: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontStyle: 'italic',
   },
 });

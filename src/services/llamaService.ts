@@ -9,6 +9,7 @@ import { getModelById, MODEL_CATALOG } from '../constants/modelCatalog';
 import { getModelLocalPath } from '../storage/modelStorage';
 import { formatChatPrompt, DEFAULT_SYSTEM_PROMPT } from '../utils/promptTemplates';
 import { getModelFilePath } from './downloadManager';
+import { resourceGuard } from './resourceGuard';
 
 export interface LlamaServiceState {
   activeModelId: string | null;
@@ -22,6 +23,7 @@ export interface GenerateCompletionParams {
   modelId?: string;
   messages: ChatMessage[];
   systemPrompt?: string;
+  mediaPaths?: string[];
   onToken?: (token: string) => void;
   maxTokens?: number;
   temperature?: number;
@@ -156,6 +158,24 @@ class LlamaService {
       );
 
       this.activeContext = context;
+
+      // If this model is multimodal and has an mmproj projector, initialize it
+      if (model.isMultimodal && model.mmprojFilename) {
+        const mmprojPath = getModelFilePath(model.mmprojFilename);
+        const mmprojExists = await RNFS.exists(mmprojPath);
+        if (mmprojExists) {
+          try {
+            console.log(`[LlamaService] Initializing multimodal vision projector from: ${mmprojPath}`);
+            await context.initMultimodal({ path: mmprojPath });
+            console.log('[LlamaService] Multimodal vision projector successfully initialized.');
+          } catch (mmErr) {
+            console.warn('[LlamaService] Failed to initialize multimodal projector:', mmErr);
+          }
+        } else {
+          console.warn(`[LlamaService] mmproj file not found at ${mmprojPath}. Text inference only.`);
+        }
+      }
+
       this.updateState({
         isLoading: false,
         loadProgress: 100,
@@ -238,19 +258,32 @@ class LlamaService {
       new Set([...model.stopTokens, ...(params.stopTokens || [])])
     );
 
+    if (!resourceGuard.canStartInference()) {
+      throw new Error(
+        'Document indexing is currently active. Inference is paused to preserve device memory.'
+      );
+    }
+    resourceGuard.acquireInferenceLock();
+
     this.updateState({ isGenerating: true, error: null });
 
     let accumulatedText = '';
 
     try {
+      const completionConfig: any = {
+        prompt: formattedPrompt,
+        n_predict: params.maxTokens ?? 1024,
+        temperature: params.temperature ?? 0.7,
+        top_p: params.topP ?? 0.9,
+        stop: stopTokens,
+      };
+
+      if (params.mediaPaths && params.mediaPaths.length > 0) {
+        completionConfig.media_paths = params.mediaPaths;
+      }
+
       const result = await context.completion(
-        {
-          prompt: formattedPrompt,
-          n_predict: params.maxTokens ?? 1024,
-          temperature: params.temperature ?? 0.7,
-          top_p: params.topP ?? 0.9,
-          stop: stopTokens,
-        },
+        completionConfig,
         tokenData => {
           accumulatedText += tokenData.token;
           params.onToken?.(tokenData.token);
@@ -271,6 +304,8 @@ class LlamaService {
       }
       console.error('[LlamaService] Inference error:', error);
       throw error;
+    } finally {
+      resourceGuard.releaseInferenceLock();
     }
   }
 

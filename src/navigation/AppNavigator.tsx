@@ -9,6 +9,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
 import { ModelsScreen } from '../screens/ModelsScreen';
 import { ChatScreen } from '../screens/ChatScreen';
+import { KnowledgeScreen } from '../screens/KnowledgeScreen';
 import { useTheme } from '../theme/ThemeContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,6 +45,7 @@ export const AppNavigator: React.FC = () => {
       >
         <Stack.Screen name="Models" component={ModelsScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="Knowledge" component={KnowledgeScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -8,6 +8,12 @@ import App from '../App';
 
 const store: Record<string, string> = {};
 
+jest.mock('@dr.pogodin/react-native-fs', () => ({
+  exists: jest.fn(),
+  readFile: jest.fn(),
+  DocumentDirectoryPath: '/mock/dir',
+}));
+
 jest.mock('../src/storage/mmkv', () => ({
   storage: {
     getString: jest.fn((key: string) => store[key] || null),
@@ -69,6 +75,23 @@ jest.mock('../src/services/llamaService', () => ({
     generateCompletion: jest.fn(),
     stopGeneration: jest.fn(),
   },
+}));
+
+jest.mock('react-native-document-picker', () => ({
+  pickSingle: jest.fn(),
+  isCancel: jest.fn(),
+  types: {
+    plainText: 'text/plain',
+    allFiles: '*/*',
+    images: 'image/*',
+  },
+}));
+
+jest.mock('@op-engineering/op-sqlite', () => ({
+  open: jest.fn(() => ({
+    execute: jest.fn(async () => ({ rows: [] })),
+    executeSync: jest.fn(() => ({ rows: [] })),
+  })),
 }));
 
 test('renders correctly', async () => {

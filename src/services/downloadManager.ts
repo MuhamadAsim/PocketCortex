@@ -218,6 +218,25 @@ async function executeDownload(
       const finalStat = await RNFS.stat(destPath);
       const finalSize = Number(finalStat.size);
 
+      // If multimodal model, also ensure the mmproj companion file is downloaded
+      if (model.isMultimodal && model.mmprojUrl && model.mmprojFilename) {
+        const mmprojDest = getModelFilePath(model.mmprojFilename);
+        const mmprojExists = await RNFS.exists(mmprojDest);
+        if (!mmprojExists) {
+          console.log(`[DownloadManager] Downloading multimodal companion projector for ${model.name}...`);
+          try {
+            await RNFS.downloadFile({
+              fromUrl: model.mmprojUrl,
+              toFile: mmprojDest,
+              background: true,
+            }).promise;
+            console.log('[DownloadManager] Companion projector downloaded successfully.');
+          } catch (mmErr) {
+            console.warn('[DownloadManager] Failed downloading companion projector:', mmErr);
+          }
+        }
+      }
+
       const successState: ModelDownloadState = {
         modelId,
         status: 'downloaded',
@@ -315,6 +334,17 @@ export async function deleteModel(modelId: string): Promise<void> {
     } catch (err) {
       console.warn(`Failed to unlink file for ${modelId}:`, err);
     }
+  }
+
+  // Also unlink companion mmproj if multimodal
+  const modelDef = activeJobs.get(modelId)?.model;
+  if (modelDef?.isMultimodal && modelDef.mmprojFilename) {
+    const mmprojPath = getModelFilePath(modelDef.mmprojFilename);
+    try {
+      if (await RNFS.exists(mmprojPath)) {
+        await RNFS.unlink(mmprojPath);
+      }
+    } catch {}
   }
 
   removeModelDownloadState(modelId);

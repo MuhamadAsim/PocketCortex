@@ -246,19 +246,36 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.themeButton,
-            { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder },
-          ]}
-          activeOpacity={0.7}
-          onPress={toggleTheme}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Text style={[styles.themeButtonText, { color: theme.textPrimary }]}>
-            {isDark ? '🌙' : '☀️'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerRightRow}>
+          {navigation && (
+            <TouchableOpacity
+              style={[
+                styles.knowledgeNavBtn,
+                { backgroundColor: theme.primaryLight + '20', borderColor: theme.primaryLight + '40' },
+              ]}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('Knowledge')}
+            >
+              <Text style={[styles.knowledgeNavBtnText, { color: theme.primaryLight }]}>
+                📚 Docs & Wiki
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.themeButton,
+              { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder },
+            ]}
+            activeOpacity={0.7}
+            onPress={toggleTheme}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={[styles.themeButtonText, { color: theme.textPrimary }]}>
+              {isDark ? '🌙' : '☀️'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -458,6 +475,21 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
   },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  knowledgeNavBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  knowledgeNavBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   themeButton: {
     width: 40,
     height: 40,
@@ -465,7 +497,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.sm,
+    marginLeft: spacing.xs,
   },
   themeButtonText: {
     fontSize: 18,

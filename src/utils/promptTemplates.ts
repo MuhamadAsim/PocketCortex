@@ -1,7 +1,25 @@
-import { ChatMessage, ChatTemplateType } from '../types/models';
+import { ChatMessage, ChatTemplateType, GroundedSource } from '../types/models';
 
 export const DEFAULT_SYSTEM_PROMPT =
   'You are a helpful, respectful, and concise AI assistant running fully on-device.';
+
+/**
+ * Builds a grounded system prompt injecting RAG document excerpts and citation instructions.
+ */
+export function formatRAGSystemPrompt(
+  baseSystemPrompt: string = DEFAULT_SYSTEM_PROMPT,
+  sources: GroundedSource[]
+): string {
+  if (!sources || sources.length === 0) return baseSystemPrompt;
+  const excerpts = sources
+    .map(
+      (s, idx) =>
+        `[Source ${idx + 1}: ${s.docName}]\n${s.excerpt.trim()}`
+    )
+    .join('\n\n');
+
+  return `${baseSystemPrompt}\n\n--- RELEVANT KNOWLEDGE EXCERPTS ---\nUse the following excerpts to answer the question accurately. If referencing these excerpts, cite them as [Source 1], [Source 2], etc.\n\n${excerpts}\n-----------------------------------`;
+}
 
 /**
  * Formats an array of chat messages into a raw prompt string according to the
@@ -19,6 +37,8 @@ export function formatChatPrompt(
       return formatLlama3(messages, systemPrompt);
     case 'gemma':
       return formatGemma(messages, systemPrompt);
+    case 'moondream':
+      return formatMoondream(messages, systemPrompt);
     default:
       return formatChatML(messages, systemPrompt);
   }
@@ -130,3 +150,25 @@ function formatGemma(messages: ChatMessage[], defaultSystem: string): string {
   prompt += '<start_of_turn>model\n';
   return prompt;
 }
+
+/**
+ * Moondream vision format
+ *
+ * \n\nQuestion: {user_message}\n\nAnswer:
+ */
+function formatMoondream(messages: ChatMessage[], defaultSystem: string): string {
+  let prompt = '';
+  for (const msg of messages) {
+    if (msg.role === 'system') continue;
+    if (msg.role === 'user') {
+      prompt += `\n\nQuestion: ${msg.content.trim()}\n\nAnswer:`;
+    } else {
+      prompt += ` ${msg.content.trim()}`;
+    }
+  }
+  if (!prompt.endsWith('Answer:')) {
+    prompt += '\n\nAnswer:';
+  }
+  return prompt;
+}
+

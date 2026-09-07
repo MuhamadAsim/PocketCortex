@@ -46,7 +46,44 @@ export const MODEL_CATALOG: ModelDefinition[] = [
     chatTemplate: 'gemma',
     stopTokens: ['<end_of_turn>', '<eos>'],
   },
+  {
+    id: 'moondream-2-vision',
+    name: 'Moondream 2 (Vision)',
+    repo: 'vikhyatk/moondream2',
+    filename: 'moondream2-text-model-f16.gguf',
+    sizeBytes: 1048000000,
+    downloadUrl:
+      'https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-text-model-f16.gguf',
+    description:
+      'Ultra-compact mobile vision model capable of visual Q&A, scene description, reading receipts, and image analysis.',
+    quantLabel: 'F16',
+    parameters: '1.86B',
+    chatTemplate: 'moondream',
+    stopTokens: ['<|endoftext|>', '\n\nQuestion:', 'Question:'],
+    isMultimodal: true,
+    mmprojFilename: 'moondream2-mmproj-f16.gguf',
+    mmprojUrl:
+      'https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-mmproj-f16.gguf',
+    mmprojSizeBytes: 260000000,
+  },
 ];
+
+export const EMBEDDING_MODEL: ModelDefinition = {
+  id: 'all-minilm-l6-v2',
+  name: 'All-MiniLM-L6-v2 (Embedding)',
+  repo: 'leliuga/all-MiniLM-L6-v2-GGUF',
+  filename: 'all-MiniLM-L6-v2.Q4_K_M.gguf',
+  sizeBytes: 24117248,
+  downloadUrl:
+    'https://huggingface.co/leliuga/all-MiniLM-L6-v2-GGUF/resolve/main/all-MiniLM-L6-v2.Q4_K_M.gguf',
+  description:
+    'Ultra-fast semantic embedding model used for local vector search and Hybrid RAG.',
+  quantLabel: 'Q4_K_M',
+  parameters: '22M',
+  chatTemplate: 'chatml',
+  stopTokens: [],
+  isEmbeddingModel: true,
+};
 
 export function getModelById(id: string): ModelDefinition | undefined {
   return MODEL_CATALOG.find(model => model.id === id);
