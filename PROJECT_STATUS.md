@@ -26,6 +26,9 @@
 | **Qwen 2.5 1.5B Instruct** | `Qwen/Qwen2.5-1.5B-Instruct-GGUF` | `qwen2.5-1.5b-instruct-q5_k_m.gguf` | `https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q5_k_m.gguf` |
 | **Llama 3.2 1B Instruct** | `bartowski/Llama-3.2-1B-Instruct-GGUF` | `Llama-3.2-1B-Instruct-Q4_K_M.gguf` | `https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf` |
 | **Gemma 3 1B Instruct** | `lm-kit/gemma-3-1b-instruct-gguf` | `gemma-3-it-1B-Q4_K_M.gguf` | `https://huggingface.co/lm-kit/gemma-3-1b-instruct-gguf/resolve/main/gemma-3-it-1B-Q4_K_M.gguf` |
+| **Moondream 2 (Vision)** | `vikhyatk/moondream2` | `moondream2-text-model-f16.gguf` | `https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-text-model-f16.gguf` |
+| **Moondream 2 (Vision Projector)** | `vikhyatk/moondream2` | `moondream2-mmproj-f16.gguf` | `https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-mmproj-f16.gguf` |
+| **All-MiniLM-L6-v2 (Embedding)** | `leliuga/all-MiniLM-L6-v2-GGUF` | `all-MiniLM-L6-v2.Q4_K_M.gguf` | `https://huggingface.co/leliuga/all-MiniLM-L6-v2-GGUF/resolve/main/all-MiniLM-L6-v2.Q4_K_M.gguf` |
 
 ---
 
@@ -72,6 +75,18 @@
   - [x] Created `src/navigation/AppNavigator.tsx` (React Navigation Native Stack with custom theme & slide animations).
   - [x] Updated `ModelsScreen.tsx` and `ChatScreen.tsx` to integrate with Native Stack.
   - [x] Updated `App.tsx` to mount `AppNavigator`.
+- [x] **Step 9 — On-Device Hybrid RAG, ResourceGuard & Moondream 2 Vision**
+  - [x] Installed and configured `@op-engineering/op-sqlite` (C++ SQLite with FTS5) and `react-native-document-picker`.
+  - [x] Created `src/services/resourceGuard.ts` & `src/hooks/useResourceGuard.ts` for crash prevention (mutual exclusion between indexing and inference).
+  - [x] Created `src/storage/knowledgeDatabase.ts` (SQLite FTS5 BM25 search, vector embeddings store, Reciprocal Rank Fusion).
+  - [x] Created `src/services/embeddingService.ts` (`all-MiniLM-L6-v2.gguf` on-device vector embedding model via `llama.rn`).
+  - [x] Created `src/services/knowledgeService.ts` (file picker for `.txt`, `.md`, `.json`, `.csv`, text chunking with 50-word overlap).
+  - [x] Integrated Moondream 2 (~1.86B) multimodal vision model with paired `moondream2-mmproj-f16.gguf` download and inference.
+  - [x] Created `src/screens/KnowledgeScreen.tsx` for file management, chunk metrics, and embedding status.
+  - [x] Updated `ChatScreen.tsx` with search toggle, camera image attach, thumbnail preview, and grounded context injection.
+  - [x] Updated `ChatBubble.tsx` with image preview and collapsible `📚 X Sources Grounded` card.
+  - [x] Added ProGuard rules in `android/app/proguard-rules.pro`.
+  - [x] Verified zero TypeScript errors (`npx tsc --noEmit`), passed all Jest unit tests (`npm test`), and verified clean Metro packaging.
 
 ---
 

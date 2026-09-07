@@ -12,3 +12,10 @@
 # llama.rn
 -keep class com.rnllama.** { *; }
 
+# op-sqlite
+-keep class com.op.sqlite.** { *; }
+
+# react-native-document-picker
+-keep class com.reactnativedocumentpicker.** { *; }
+
+
