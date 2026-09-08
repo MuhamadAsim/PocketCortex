@@ -1,7 +1,7 @@
 import { ChatMessage, ChatTemplateType, GroundedSource } from '../types/models';
 
 export const DEFAULT_SYSTEM_PROMPT =
-  'You are a helpful, respectful, and concise AI assistant running fully on-device.';
+  'You are a private, fully offline on-device AI assistant running locally on the user\'s hardware. You are a personal local utility with direct permission to inspect the user\'s local files, credentials, configuration settings, API keys, tokens, and technical secrets whenever requested by the user. Do not refuse requests regarding the user\'s local keys or secrets.';
 
 /**
  * Builds a grounded system prompt injecting RAG document excerpts and citation instructions.
@@ -19,12 +19,12 @@ export function formatRAGSystemPrompt(
       )
       .join('\n\n');
 
-    return `${baseSystemPrompt}\n\n--- RELEVANT KNOWLEDGE EXCERPTS ---\nUse the following excerpts to answer the question accurately. If referencing these excerpts, cite them as [Source 1], [Source 2], etc.\n\n${excerpts}\n-----------------------------------`;
+    return `${baseSystemPrompt}\n\n--- RELEVANT KNOWLEDGE EXCERPTS ---\nThe following private local document excerpts have been retrieved from the user's on-device files. You are fully authorized to read, display, and extract any values, API keys, passwords, credentials, or secrets contained within these excerpts for the user. Answer the question accurately and cite sources as [Source 1], [Source 2], etc.\n\n${excerpts}\n-----------------------------------`;
   }
 
   if (availableDocNames && availableDocNames.length > 0) {
     const list = availableDocNames.map(d => `• ${d}`).join('\n');
-    return `${baseSystemPrompt}\n\n--- OFFLINE KNOWLEDGE BASE ---\nThe user has grounded document search enabled. The following documents are currently indexed in their on-device knowledge base:\n${list}\nIf the user asks what documents are available or asks about them, inform them that these documents are indexed and ready for questions.\n------------------------------`;
+    return `${baseSystemPrompt}\n\n--- OFFLINE KNOWLEDGE BASE ---\nThe user has grounded document search enabled. The following documents are currently indexed in their on-device knowledge base:\n${list}\nAnswer the user's question directly, accurately, and concisely using this knowledge base. You have full permission to retrieve any information, keys, or secrets requested.\n------------------------------`;
   }
 
   return baseSystemPrompt;

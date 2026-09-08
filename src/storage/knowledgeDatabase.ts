@@ -464,33 +464,31 @@ class KnowledgeDatabase {
     // Sort descending by RRF score
     scoredList.sort((a, b) => b.score - a.score);
 
-    // If no specific keyword/vector matches and user asks general questions about documents
+    // If no specific keyword/vector matches, always fallback to top chunks from indexed documents
+    // so the model always receives real document excerpts to answer from on the very first try!
     if (scoredList.length === 0) {
-      const isDocQuery = /\b(doc|docs|document|documents|file|files|upload|uploaded|summary|summarize|notes|content|contents|info|information|wiki|paper|text|read|tell me|explain)\b/i.test(cleanQuery);
-      if (isDocQuery) {
-        try {
-          const fallbackRes = await db.execute(
-            `SELECT doc_id, chunk_index, doc_name, content
-             FROM document_chunks
-             ORDER BY chunk_index ASC
-             LIMIT ?;`,
-            [limit]
-          );
-          if (fallbackRes.rows && fallbackRes.rows.length > 0) {
-            for (let i = 0; i < fallbackRes.rows.length; i++) {
-              const r = fallbackRes.rows[i];
-              scoredList.push({
-                docId: String(r.doc_id),
-                docName: String(r.doc_name),
-                chunkIndex: Number(r.chunk_index),
-                excerpt: String(r.content),
-                score: 0.01,
-              });
-            }
+      try {
+        const fallbackRes = await db.execute(
+          `SELECT doc_id, chunk_index, doc_name, content
+           FROM document_chunks
+           ORDER BY chunk_index ASC
+           LIMIT ?;`,
+          [limit]
+        );
+        if (fallbackRes.rows && fallbackRes.rows.length > 0) {
+          for (let i = 0; i < fallbackRes.rows.length; i++) {
+            const r = fallbackRes.rows[i];
+            scoredList.push({
+              docId: String(r.doc_id),
+              docName: String(r.doc_name),
+              chunkIndex: Number(r.chunk_index),
+              excerpt: String(r.content),
+              score: 0.01,
+            });
           }
-        } catch (err) {
-          console.warn('[KnowledgeDatabase] Exploratory fallback search warning:', err);
         }
+      } catch (err) {
+        console.warn('[KnowledgeDatabase] Fallback chunk retrieval warning:', err);
       }
     }
 
