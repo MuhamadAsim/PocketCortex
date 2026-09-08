@@ -7,6 +7,7 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
+import { SplashScreen } from '../screens/SplashScreen';
 import { ModelsScreen } from '../screens/ModelsScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { KnowledgeScreen } from '../screens/KnowledgeScreen';
@@ -36,13 +37,18 @@ export const AppNavigator: React.FC = () => {
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
-        initialRouteName="Models"
+        initialRouteName="Splash"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
           contentStyle: { backgroundColor: theme.background },
         }}
       >
+        <Stack.Screen
+          name="Splash"
+          component={SplashScreen}
+          options={{ animation: 'fade' }}
+        />
         <Stack.Screen name="Models" component={ModelsScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
         <Stack.Screen name="Knowledge" component={KnowledgeScreen} />
