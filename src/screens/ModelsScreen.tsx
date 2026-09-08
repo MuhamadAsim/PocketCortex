@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   FlatList,
   RefreshControl,
@@ -227,8 +228,12 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
       >
         <View style={styles.headerLeft}>
           <View style={styles.brandRow}>
+            <Image
+              source={require('../assets/logo.png')}
+              style={styles.logoImage}
+            />
             <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
-              PocketLLM
+              PocketCortex
             </Text>
             <View
               style={[
@@ -242,7 +247,7 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
             </View>
           </View>
           <Text style={[styles.brandSubtitle, { color: theme.textSecondary }]}>
-            On-Device Local AI • Private & Private
+            On-Device Local AI • 100% Private & Offline
           </Text>
         </View>
 
@@ -451,6 +456,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  logoImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
   },
   brandTitle: {
     ...typography.titleLarge,

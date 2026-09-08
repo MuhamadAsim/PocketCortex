@@ -1,7 +1,7 @@
 {
   "name": "app",
-  "displayName": "app",
-  "slug": "localmind-rn",
+  "displayName": "PocketCortex",
+  "slug": "pocketcortex",
   "extra": {
     "eas": {
       "projectId": "4face685-b17d-4630-9724-cdcd640e3950"

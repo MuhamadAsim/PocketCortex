@@ -143,7 +143,7 @@ async function executeDownload(
   }
 
   const headers: Record<string, string> = {
-    'User-Agent': 'LocalMindRN-App/1.0',
+    'User-Agent': 'PocketCortex/1.0',
     Accept: '*/*',
   };
 

@@ -1,6 +1,6 @@
-# LocalMind RN — Project Status & Agent Guide
+# PocketCortex — Project Status & Agent Guide
 
-> **Project Goal:** On-device offline LLM chat application for Android using React Native (TypeScript), New Architecture (Fabric + TurboModules), `llama.rn` for local GGUF inference, `@dr.pogodin/react-native-fs` for resumable downloads, and `react-native-mmkv` for storage.
+> **Project Goal:** On-device offline AI & multimodal chat application for Android using React Native (TypeScript), New Architecture (Fabric + TurboModules), `llama.rn` for local GGUF inference, hybrid RAG with local SQLite FTS5 & vector embeddings, `@dr.pogodin/react-native-fs` for resumable downloads, and `react-native-mmkv` for storage.
 
 ---
 

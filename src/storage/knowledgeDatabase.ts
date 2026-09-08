@@ -22,7 +22,7 @@ class KnowledgeDatabase {
 
   private getDB(): DB {
     if (!this.db) {
-      this.db = open({ name: 'pocketllm_knowledge.db' });
+      this.db = open({ name: 'pocketcortex_knowledge.db' });
       this.initTables();
     }
     return this.db;
