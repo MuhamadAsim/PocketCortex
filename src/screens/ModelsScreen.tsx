@@ -226,8 +226,9 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
           },
         ]}
       >
-        <View style={styles.headerLeft}>
-          <View style={styles.brandRow}>
+        {/* Row 1: Brand (Logo + Title) and Actions (Docs + Theme) */}
+        <View style={styles.headerTopRow}>
+          <View style={styles.brandGroup}>
             <Image
               source={require('../assets/logo.png')}
               style={styles.logoImage}
@@ -235,51 +236,55 @@ export const ModelsScreen: React.FC<ModelsScreenProps> = ({
             <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
               PocketCortex
             </Text>
-            <View
-              style={[
-                styles.offlineBadge,
-                { backgroundColor: theme.successBg, borderColor: theme.success },
-              ]}
-            >
-              <Text style={[styles.offlineBadgeText, { color: theme.success }]}>
-                ● 100% OFFLINE
-              </Text>
-            </View>
           </View>
-          <Text style={[styles.brandSubtitle, { color: theme.textSecondary }]}>
-            On-Device Local AI • 100% Private & Offline
-          </Text>
-        </View>
 
-        <View style={styles.headerRightRow}>
-          {navigation && (
+          <View style={styles.headerActionsGroup}>
+            {navigation && (
+              <TouchableOpacity
+                style={[
+                  styles.knowledgeNavBtn,
+                  { backgroundColor: theme.primaryLight + '20', borderColor: theme.primaryLight + '40' },
+                ]}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('Knowledge')}
+              >
+                <Text style={[styles.knowledgeNavBtnText, { color: theme.primaryLight }]}>
+                  📚 Docs & Wiki
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[
-                styles.knowledgeNavBtn,
-                { backgroundColor: theme.primaryLight + '20', borderColor: theme.primaryLight + '40' },
+                styles.themeButton,
+                { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder },
               ]}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate('Knowledge')}
+              onPress={toggleTheme}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={[styles.knowledgeNavBtnText, { color: theme.primaryLight }]}>
-                📚 Docs & Wiki
+              <Text style={[styles.themeButtonText, { color: theme.textPrimary }]}>
+                {isDark ? '🌙' : '☀️'}
               </Text>
             </TouchableOpacity>
-          )}
+          </View>
+        </View>
 
-          <TouchableOpacity
+        {/* Row 2: Subtitle & Offline Status Badge */}
+        <View style={styles.headerSubRow}>
+          <Text style={[styles.brandSubtitle, { color: theme.textSecondary }]}>
+            On-Device Local AI • 100% Private
+          </Text>
+          <View
             style={[
-              styles.themeButton,
-              { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder },
+              styles.offlineBadge,
+              { backgroundColor: theme.successBg, borderColor: theme.success },
             ]}
-            activeOpacity={0.7}
-            onPress={toggleTheme}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={[styles.themeButtonText, { color: theme.textPrimary }]}>
-              {isDark ? '🌙' : '☀️'}
+            <Text style={[styles.offlineBadgeText, { color: theme.success }]}>
+              ● 100% OFFLINE
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -442,17 +447,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm + 2,
+    borderBottomWidth: 1,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
   },
-  headerLeft: {
-    flex: 1,
-  },
-  brandRow: {
+  brandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -468,6 +472,42 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.3,
   },
+  headerActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  knowledgeNavBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  knowledgeNavBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  themeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeButtonText: {
+    fontSize: 16,
+  },
+  headerSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  brandSubtitle: {
+    ...typography.bodySmall,
+    fontSize: 12,
+  },
   offlineBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -479,38 +519,6 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '800',
     letterSpacing: 0.3,
-  },
-  brandSubtitle: {
-    ...typography.bodySmall,
-    marginTop: 2,
-    fontSize: 12,
-  },
-  headerRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  knowledgeNavBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: radius.full,
-    borderWidth: 1,
-  },
-  knowledgeNavBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  themeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.xs,
-  },
-  themeButtonText: {
-    fontSize: 18,
   },
   listContent: {
     paddingHorizontal: spacing.md + 2,

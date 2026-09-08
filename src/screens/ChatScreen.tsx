@@ -190,6 +190,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           if (hits && hits.length > 0) {
             groundedSources = hits;
             systemPrompt = formatRAGSystemPrompt(undefined, hits);
+          } else {
+            const docs = await knowledgeService.getDocuments();
+            if (docs && docs.length > 0) {
+              systemPrompt = formatRAGSystemPrompt(
+                undefined,
+                [],
+                docs.map(d => d.name)
+              );
+            }
           }
         } catch (searchErr) {
           console.warn('RAG Search warning:', searchErr);

@@ -141,6 +141,14 @@ describe('Knowledge RAG & Multimodal Utilities', () => {
       expect(res).toContain('E = mc^2 explains mass-energy equivalence.');
       expect(res).toContain('[Source 1], [Source 2]');
     });
+
+    it('formats available documents fallback when sources are empty', () => {
+      const res = formatRAGSystemPrompt(DEFAULT_SYSTEM_PROMPT, [], ['QuarterlyReport.pdf', 'TeamWiki.md']);
+      expect(res).toContain('--- OFFLINE KNOWLEDGE BASE ---');
+      expect(res).toContain('• QuarterlyReport.pdf');
+      expect(res).toContain('• TeamWiki.md');
+      expect(res).toContain('The following documents are currently indexed in their on-device knowledge base');
+    });
   });
 
   describe('Moondream formatChatPrompt', () => {
@@ -156,6 +164,71 @@ describe('Knowledge RAG & Multimodal Utilities', () => {
 
       const prompt = formatChatPrompt(messages, 'moondream');
       expect(prompt).toContain('Question: What is written on this sign?\n\nAnswer:');
+    });
+  });
+
+  describe('knowledgeDatabase operations', () => {
+    it('can initialize, insert, query and delete documents', async () => {
+      const { knowledgeDatabase } = require('../src/storage/knowledgeDatabase');
+      await expect(
+        knowledgeDatabase.insertDocument(
+          {
+            id: 'test_doc_1',
+            name: 'TestDoc.txt',
+            size: 100,
+            chunkCount: 1,
+            createdAt: Date.now(),
+          },
+          [
+            {
+              chunkIndex: 0,
+              content: 'This is a test chunk about quantum physics.',
+            },
+          ]
+        )
+      ).resolves.not.toThrow();
+
+      const docs = await knowledgeDatabase.getDocuments();
+      expect(Array.isArray(docs)).toBe(true);
+
+      const hits = await knowledgeDatabase.hybridSearch('quantum', 3);
+      expect(Array.isArray(hits)).toBe(true);
+
+      await expect(knowledgeDatabase.deleteDocument('test_doc_1')).resolves.not.toThrow();
+    });
+
+    it('rolls back document metadata if chunk insertion fails', async () => {
+      const { knowledgeDatabase } = require('../src/storage/knowledgeDatabase');
+      const mockDb = await knowledgeDatabase.ensureInitialized();
+      const origExecute = mockDb.execute;
+
+      // Make chunk insertion throw an error
+      mockDb.execute = jest.fn(async (sql: string, params?: any[]) => {
+        if (typeof sql === 'string' && sql.includes('INSERT OR REPLACE INTO document_chunks')) {
+          throw new Error('Disk full or constraint error');
+        }
+        return origExecute(sql, params);
+      });
+
+      await expect(
+        knowledgeDatabase.insertDocument(
+          {
+            id: 'failing_doc',
+            name: 'Corrupt.txt',
+            size: 50,
+            chunkCount: 1,
+            createdAt: Date.now(),
+          },
+          [{ chunkIndex: 0, content: 'Some content' }]
+        )
+      ).rejects.toThrow('Disk full or constraint error');
+
+      // Restore
+      mockDb.execute = origExecute;
+
+      // Check that deleteDocument was invoked and it did not leave a ghost document
+      const docs = await knowledgeDatabase.getDocuments();
+      expect(docs.find((d: any) => d.id === 'failing_doc')).toBeUndefined();
     });
   });
 });

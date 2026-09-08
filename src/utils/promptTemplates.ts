@@ -8,17 +8,26 @@ export const DEFAULT_SYSTEM_PROMPT =
  */
 export function formatRAGSystemPrompt(
   baseSystemPrompt: string = DEFAULT_SYSTEM_PROMPT,
-  sources: GroundedSource[]
+  sources: GroundedSource[],
+  availableDocNames?: string[]
 ): string {
-  if (!sources || sources.length === 0) return baseSystemPrompt;
-  const excerpts = sources
-    .map(
-      (s, idx) =>
-        `[Source ${idx + 1}: ${s.docName}]\n${s.excerpt.trim()}`
-    )
-    .join('\n\n');
+  if (sources && sources.length > 0) {
+    const excerpts = sources
+      .map(
+        (s, idx) =>
+          `[Source ${idx + 1}: ${s.docName}]\n${s.excerpt.trim()}`
+      )
+      .join('\n\n');
 
-  return `${baseSystemPrompt}\n\n--- RELEVANT KNOWLEDGE EXCERPTS ---\nUse the following excerpts to answer the question accurately. If referencing these excerpts, cite them as [Source 1], [Source 2], etc.\n\n${excerpts}\n-----------------------------------`;
+    return `${baseSystemPrompt}\n\n--- RELEVANT KNOWLEDGE EXCERPTS ---\nUse the following excerpts to answer the question accurately. If referencing these excerpts, cite them as [Source 1], [Source 2], etc.\n\n${excerpts}\n-----------------------------------`;
+  }
+
+  if (availableDocNames && availableDocNames.length > 0) {
+    const list = availableDocNames.map(d => `• ${d}`).join('\n');
+    return `${baseSystemPrompt}\n\n--- OFFLINE KNOWLEDGE BASE ---\nThe user has grounded document search enabled. The following documents are currently indexed in their on-device knowledge base:\n${list}\nIf the user asks what documents are available or asks about them, inform them that these documents are indexed and ready for questions.\n------------------------------`;
+  }
+
+  return baseSystemPrompt;
 }
 
 /**

@@ -25,6 +25,9 @@
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.27.0"
   },
+  "op-sqlite": {
+    "fts5": true
+  },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/preset-env": "^7.25.3",
