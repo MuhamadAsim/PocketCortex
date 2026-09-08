@@ -85,8 +85,19 @@
   - [x] Created `src/screens/KnowledgeScreen.tsx` for file management, chunk metrics, and embedding status.
   - [x] Updated `ChatScreen.tsx` with search toggle, camera image attach, thumbnail preview, and grounded context injection.
   - [x] Updated `ChatBubble.tsx` with image preview and collapsible `📚 X Sources Grounded` card.
-  - [x] Verified zero TypeScript errors (`npx tsc --noEmit`), passed all Jest unit tests (`npm test`), and verified clean Metro packaging.
-  - [x] Created `patches/react-native-document-picker+9.3.1.patch` via `patch-package` to replace removed `GuardedResultAsyncTask` with standard `ExecutorService` for React Native 0.87+ Android compilation.
+- [x] **Step 10 — Word (.docx) & PDF Import for Knowledge RAG + In-Chat Document Attachments**
+  - [x] Added `jszip` and `fast-xml-parser` dependencies for pure JS, Hermes-compatible Word (.docx) text extraction (`src/utils/docxExtractor.ts`).
+  - [x] Added `com.tom-roush:pdfbox-android:2.0.27.0` to `android/app/build.gradle`.
+  - [x] Created Android native module `PdfTextExtractorModule.kt` and package `PdfTextExtractorPackage.kt` with scanned PDF detection heuristic (`chars/page < 20`).
+  - [x] Initialized `PDFBoxResourceLoader.init(applicationContext)` and registered package in `MainApplication.kt`.
+  - [x] Created type-safe bridge wrapper `src/native/PdfTextExtractor.ts`.
+  - [x] Extended `src/services/knowledgeService.ts` with `resolveFilePath` and `extractTextFromFile` supporting `.docx`, `.pdf`, `.txt`, `.md`, `.json`, and `.csv`.
+  - [x] Integrated PDF scanned-document rejection throwing descriptive user-facing OCR error.
+  - [x] Gated parsing under `resourceGuard.acquireIndexingLock` mutex to prevent concurrent inference CPU starvation.
+  - [x] Enabled in-chat document attachments via `📎` button in `ChatScreen.tsx`, displaying attachment preview chip, attaching document to `ChatMessage`, and injecting document text into LLM prompt context strictly within that conversation (zero global DB pollution).
+  - [x] Updated `ChatBubble.tsx` to render attached document cards (`📄 <name> (<size>)`).
+  - [x] Created comprehensive unit tests in `__tests__/docxAndPdfImport.test.ts` (all 5 test suites and 29 tests passing).
+  - [x] Verified zero TypeScript compilation errors (`npx tsc --noEmit`) and clean Metro bundle compilation.
 
 ---
 

@@ -8,6 +8,8 @@ import {
 import { embeddingService } from './embeddingService';
 import { resourceGuard } from './resourceGuard';
 import { GroundedSource } from '../types/models';
+import { extractDocxText } from '../utils/docxExtractor';
+import { extractPdfText } from '../native/PdfTextExtractor';
 
 export function chunkText(
   text: string,
@@ -40,15 +42,94 @@ export function chunkText(
   return chunks;
 }
 
+/**
+ * Resolves a file URI to a filesystem path.
+ * On Android, if a content:// URI is passed, copies to cache directory for native file access.
+ */
+export async function resolveFilePath(uri: string, fileName: string): Promise<string> {
+  if (uri.startsWith('file://')) {
+    return uri.slice(7);
+  }
+
+  if (uri.startsWith('content://')) {
+    const safeName = fileName
+      ? fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+      : `doc_${Date.now()}`;
+    const destination = `${RNFS.CachesDirectoryPath}/${safeName}`;
+    try {
+      if (await RNFS.exists(destination)) {
+        await RNFS.unlink(destination);
+      }
+      await RNFS.copyFile(uri, destination);
+      return destination;
+    } catch (copyErr) {
+      console.warn('[KnowledgeService] Failed to copy content:// URI via RNFS:', copyErr);
+      return uri;
+    }
+  }
+
+  return uri;
+}
+
+/**
+ * Extracts plain text from a supported file URI (.docx, .pdf, .txt, .md, .json, .csv).
+ * Dispatches to native PDFBox for PDF, JSZip+fast-xml-parser for DOCX, and RNFS for text.
+ */
+export async function extractTextFromFile(
+  uri: string,
+  fileName: string
+): Promise<string> {
+  const resolvedPath = await resolveFilePath(uri, fileName);
+  const lower = fileName.toLowerCase();
+
+  if (lower.endsWith('.docx')) {
+    return await extractDocxText(resolvedPath);
+  }
+
+  if (lower.endsWith('.pdf')) {
+    const result = await extractPdfText(resolvedPath);
+    if (result.isLikelyScanned) {
+      throw new Error(
+        `Failed to import "${fileName}" (${result.pageCount} pages): Document appears to be a scanned image or empty. OCR import is not supported yet.`
+      );
+    }
+    if (!result.text || !result.text.trim()) {
+      throw new Error(
+        `Failed to import "${fileName}": No text could be extracted from this PDF.`
+      );
+    }
+    return result.text;
+  }
+
+  if (
+    lower.endsWith('.txt') ||
+    lower.endsWith('.md') ||
+    lower.endsWith('.json') ||
+    lower.endsWith('.csv')
+  ) {
+    return await RNFS.readFile(resolvedPath, 'utf8');
+  }
+
+  throw new Error(
+    `Unsupported document format for "${fileName}". Supported formats: .docx, .pdf, .txt, .md, .json, .csv.`
+  );
+}
+
 class KnowledgeService {
   /**
-   * Open the native document picker to select a .txt or .md file,
+   * Open the native document picker to select a document (.docx, .pdf, .txt, .md, .json, .csv),
    * chunk it, generate embeddings under ResourceGuard lock, and store in SQLite.
    */
   public async pickAndIndexDocument(): Promise<StoredDocument | null> {
     try {
       const pickerResult = await DocumentPicker.pickSingle({
-        type: [types.plainText, types.allFiles],
+        type: [
+          types.plainText,
+          types.pdf,
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          types.allFiles,
+        ],
         copyTo: 'cachesDirectory',
       });
 
@@ -56,16 +137,18 @@ class KnowledgeService {
       const fileName = pickerResult.name || 'Untitled Document';
       const fileSize = pickerResult.size || 0;
 
-      // Ensure file is supported text format
+      // Ensure file is supported document format
       const lower = fileName.toLowerCase();
       if (
         !lower.endsWith('.txt') &&
         !lower.endsWith('.md') &&
         !lower.endsWith('.json') &&
-        !lower.endsWith('.csv')
+        !lower.endsWith('.csv') &&
+        !lower.endsWith('.docx') &&
+        !lower.endsWith('.pdf')
       ) {
         throw new Error(
-          'Please select a text document (.txt, .md, .json, or .csv).'
+          'Please select a supported document (.docx, .pdf, .txt, .md, .json, or .csv).'
         );
       }
 
@@ -94,16 +177,10 @@ class KnowledgeService {
     try {
       resourceGuard.updateIndexingProgress({
         percent: 5,
-        statusText: 'Reading file contents...',
+        statusText: `Extracting text from ${fileName}...`,
       });
 
-      // Normalize URI path for Android
-      let path = uri;
-      if (path.startsWith('file://')) {
-        path = path.slice(7);
-      }
-
-      const rawText = await RNFS.readFile(path, 'utf8');
+      const rawText = await extractTextFromFile(uri, fileName);
       if (!rawText.trim()) {
         throw new Error('Selected document is empty.');
       }

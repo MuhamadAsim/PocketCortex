@@ -11,6 +11,7 @@ import {
 import { ChatMessage } from '../types/models';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, typography } from '../theme/theme';
+import { formatBytes } from '../constants/modelCatalog';
 
 export interface ChatBubbleProps {
   message: ChatMessage;
@@ -155,6 +156,52 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
                 style={styles.attachedImage}
                 resizeMode="cover"
               />
+            </View>
+          )}
+
+          {/* Attached Document Preview (PDF, DOCX, TXT, etc.) */}
+          {message.attachedDocument && (
+            <View
+              style={[
+                styles.attachedDocCard,
+                {
+                  backgroundColor: isUser
+                    ? 'rgba(255, 255, 255, 0.15)'
+                    : theme.badgeBg,
+                  borderColor: isUser
+                    ? 'rgba(255, 255, 255, 0.25)'
+                    : theme.badgeBorder,
+                },
+              ]}
+            >
+              <Text style={styles.attachedDocIcon}>📄</Text>
+              <View style={styles.attachedDocDetails}>
+                <Text
+                  style={[
+                    styles.attachedDocName,
+                    {
+                      color: isUser
+                        ? theme.primaryForeground
+                        : theme.textPrimary,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {message.attachedDocument.name}
+                </Text>
+                <Text
+                  style={[
+                    styles.attachedDocSize,
+                    {
+                      color: isUser
+                        ? 'rgba(255, 255, 255, 0.75)'
+                        : theme.textMuted,
+                    },
+                  ]}
+                >
+                  {formatBytes(message.attachedDocument.size)}
+                </Text>
+              </View>
             </View>
           )}
 
@@ -425,5 +472,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     fontStyle: 'italic',
+  },
+  attachedDocCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: 8,
+    gap: 8,
+  },
+  attachedDocIcon: {
+    fontSize: 18,
+  },
+  attachedDocDetails: {
+    flex: 1,
+  },
+  attachedDocName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  attachedDocSize: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });

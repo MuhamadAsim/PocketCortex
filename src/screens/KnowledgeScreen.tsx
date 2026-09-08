@@ -277,7 +277,7 @@ export const KnowledgeScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         ]}
       >
         <Text style={[styles.importButtonText, { color: theme.primaryForeground }]}>
-          📄 Import Document (.txt, .md, .json)
+          📄 Import Document (.docx, .pdf, .txt, .md)
         </Text>
       </TouchableOpacity>
 
@@ -296,8 +296,8 @@ export const KnowledgeScreen: React.FC<{ navigation: any }> = ({ navigation }) =
               No Documents Indexed Yet
             </Text>
             <Text style={[styles.emptyDesc, { color: theme.textMuted }]}>
-              Import text notes, study guides, articles, or offline Wikipedia
-              excerpts to search and cite them directly in offline chat.
+              Import Word (.docx), PDF, text notes, study guides, articles, or
+              offline Wikipedia excerpts to search and cite them directly in offline chat.
             </Text>
           </View>
         ) : (

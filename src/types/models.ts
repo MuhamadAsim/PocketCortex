@@ -45,6 +45,12 @@ export interface GroundedSource {
   score?: number;
 }
 
+export interface AttachedDocumentInfo {
+  name: string;
+  size: number;
+  snippet?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -52,6 +58,7 @@ export interface ChatMessage {
   timestamp: number;
   imageUri?: string;
   sources?: GroundedSource[];
+  attachedDocument?: AttachedDocumentInfo;
 }
 
 export interface ConversationHistory {

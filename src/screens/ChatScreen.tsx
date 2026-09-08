@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DocumentPicker, { types } from 'react-native-document-picker';
-import { getModelById } from '../constants/modelCatalog';
+import { getModelById, formatBytes } from '../constants/modelCatalog';
 import { ChatMessage, GroundedSource } from '../types/models';
 import {
   getChatMessages,
@@ -29,7 +29,7 @@ import { ChatBubble } from '../components/ChatBubble';
 import { useTheme } from '../theme/ThemeContext';
 import { spacing, radius, typography } from '../theme/theme';
 import { ChatScreenNavigationProps } from '../navigation/types';
-import { knowledgeService } from '../services/knowledgeService';
+import { knowledgeService, extractTextFromFile } from '../services/knowledgeService';
 import { formatRAGSystemPrompt } from '../utils/promptTemplates';
 import { useResourceGuard } from '../hooks/useResourceGuard';
 
@@ -70,6 +70,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isSearchEnabled, setIsSearchEnabled] = useState(true);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [attachedFile, setAttachedFile] = useState<{
+    name: string;
+    size: number;
+    content: string;
+    uri: string;
+  } | null>(null);
+  const [isExtractingFile, setIsExtractingFile] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -163,6 +170,49 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     }
   }, []);
 
+  const handlePickDocument = useCallback(async () => {
+    try {
+      const res = await DocumentPicker.pickSingle({
+        type: [
+          types.plainText,
+          types.pdf,
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          types.allFiles,
+        ],
+        copyTo: 'cachesDirectory',
+      });
+
+      const fileUri = res.fileCopyUri || res.uri;
+      const fileName = res.name || 'Untitled Document';
+      const fileSize = res.size || 0;
+
+      setIsExtractingFile(true);
+      try {
+        const text = await extractTextFromFile(fileUri, fileName);
+        if (!text.trim()) {
+          Alert.alert('Empty Document', 'The selected document does not contain readable text.');
+          return;
+        }
+
+        setAttachedFile({
+          name: fileName,
+          size: fileSize,
+          content: text,
+          uri: fileUri,
+        });
+      } catch (extractErr: any) {
+        Alert.alert('Document Import Failed', extractErr?.message || 'Could not extract text.');
+      } finally {
+        setIsExtractingFile(false);
+      }
+    } catch (err: any) {
+      if (!DocumentPicker.isCancel(err)) {
+        Alert.alert('Error', 'Failed to select document.');
+      }
+    }
+  }, []);
+
   const handleSend = useCallback(
     async (textToSend?: string) => {
       if (resourceState.mode === 'INDEXING') {
@@ -175,18 +225,21 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 
       const content = (textToSend || inputText).trim();
       const currentImage = selectedImageUri;
-      if ((!content && !currentImage) || isGenerating) return;
+      const currentDoc = attachedFile;
+      if ((!content && !currentImage && !currentDoc) || isGenerating) return;
 
       setInputText('');
       setSelectedImageUri(null);
+      setAttachedFile(null);
 
       // Perform RAG retrieval if search is enabled
       let groundedSources: GroundedSource[] = [];
       let systemPrompt: string | undefined;
 
-      if (isSearchEnabled && content) {
+      const queryForSearch = content || (currentDoc ? currentDoc.name : '');
+      if (isSearchEnabled && queryForSearch) {
         try {
-          const hits = await knowledgeService.searchKnowledge(content, 3);
+          const hits = await knowledgeService.searchKnowledge(queryForSearch, 3);
           if (hits && hits.length > 0) {
             groundedSources = hits;
             systemPrompt = formatRAGSystemPrompt(undefined, hits);
@@ -212,6 +265,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         content,
         timestamp: Date.now(),
         imageUri: currentImage || undefined,
+        attachedDocument: currentDoc
+          ? {
+              name: currentDoc.name,
+              size: currentDoc.size,
+              snippet: currentDoc.content.slice(0, 150),
+            }
+          : undefined,
       };
 
       appendChatMessage(modelId, userMsg);
@@ -219,7 +279,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       setMessages(withUser);
       scrollToBottom();
 
-      // 2. Create and persist placeholder assistant message with role 'assistant'
+      // 2. Build inference message list:
+      // If a document was attached in this turn, supply its text to the LLM context for this chat turn
+      const messagesForInference = [...messages];
+      if (currentDoc) {
+        const promptWithDoc = `[Attached Document: "${currentDoc.name}"]\n"""\n${currentDoc.content}\n"""\n\n${content || 'Please analyze and summarize the attached document.'}`;
+        messagesForInference.push({
+          ...userMsg,
+          content: promptWithDoc,
+        });
+      } else {
+        messagesForInference.push(userMsg);
+      }
+
+      // 3. Create and persist placeholder assistant message with role 'assistant'
       const assistantId = `assistant-${Date.now()}`;
       const placeholderAssistantMsg: ChatMessage = {
         id: assistantId,
@@ -246,7 +319,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 
         await generateCompletion({
           modelId,
-          messages: withUser,
+          messages: messagesForInference,
           systemPrompt,
           mediaPaths: mediaPath ? [mediaPath] : undefined,
           onToken: (token: string) => {
@@ -291,6 +364,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     [
       inputText,
       selectedImageUri,
+      attachedFile,
       isSearchEnabled,
       resourceState.mode,
       isGenerating,
@@ -520,6 +594,30 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           </View>
         )}
 
+        {/* Selected Attached Document Preview */}
+        {attachedFile && (
+          <View style={[styles.docPreviewBar, { backgroundColor: theme.surface, borderTopColor: theme.divider }]}>
+            <View style={styles.docPreviewLeft}>
+              <Text style={styles.docPreviewIcon}>📄</Text>
+              <View style={styles.docPreviewInfo}>
+                <Text style={[styles.docPreviewName, { color: theme.textPrimary }]} numberOfLines={1}>
+                  {attachedFile.name}
+                </Text>
+                <Text style={[styles.docPreviewMeta, { color: theme.textMuted }]}>
+                  {formatBytes(attachedFile.size)} • In-chat attachment
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => setAttachedFile(null)}
+              style={[styles.removeDocBtn, { backgroundColor: theme.card }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={[styles.removeDocBtnText, { color: theme.error }]}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Floating Input Bar */}
         <View
           style={[
@@ -533,6 +631,22 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
             },
           ]}
         >
+          {/* Document Attachment Button (Word, PDF, TXT, etc.) */}
+          <TouchableOpacity
+            onPress={handlePickDocument}
+            disabled={isExtractingFile || isModelLoading}
+            style={[
+              styles.attachButton,
+              { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder },
+            ]}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.attachButtonText}>
+              {isExtractingFile ? '⏳' : '📎'}
+            </Text>
+          </TouchableOpacity>
+
           {model?.isMultimodal && (
             <TouchableOpacity
               onPress={handlePickImage}
@@ -559,9 +673,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
             placeholder={
               isModelLoading
                 ? 'Loading model into memory...'
+                : attachedFile
+                ? `Ask about ${attachedFile.name}...`
                 : model?.isMultimodal
-                ? 'Type or attach an image...'
-                : 'Type a message...'
+                ? 'Type, attach image, or document...'
+                : 'Type or attach a document...'
             }
             placeholderTextColor={theme.textMuted}
             value={inputText}
@@ -595,14 +711,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                 styles.actionButton,
                 {
                   backgroundColor:
-                    (inputText.trim().length > 0 || !!selectedImageUri) && !isModelLoading
+                    (inputText.trim().length > 0 || !!selectedImageUri || !!attachedFile) &&
+                    !isModelLoading
                       ? theme.primary
                       : theme.badgeBorder,
                 },
               ]}
               activeOpacity={0.8}
               disabled={
-                (inputText.trim().length === 0 && !selectedImageUri) ||
+                (inputText.trim().length === 0 && !selectedImageUri && !attachedFile) ||
                 isModelLoading
               }
               onPress={() => handleSend()}
@@ -612,7 +729,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                   styles.actionButtonText,
                   {
                     color:
-                      (inputText.trim().length > 0 || !!selectedImageUri) && !isModelLoading
+                      (inputText.trim().length > 0 || !!selectedImageUri || !!attachedFile) &&
+                      !isModelLoading
                         ? theme.primaryForeground
                         : theme.textMuted,
                   },
@@ -845,5 +963,50 @@ const styles = StyleSheet.create({
   },
   attachButtonText: {
     fontSize: 18,
+  },
+  docPreviewBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+  },
+  docPreviewLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+    gap: 8,
+  },
+  docPreviewIcon: {
+    fontSize: 22,
+  },
+  docPreviewInfo: {
+    flex: 1,
+  },
+  docPreviewName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  docPreviewMeta: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  removeDocBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  removeDocBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
 });
