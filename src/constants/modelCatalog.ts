@@ -49,11 +49,11 @@ export const MODEL_CATALOG: ModelDefinition[] = [
   {
     id: 'moondream-2-vision',
     name: 'Moondream 2 (Vision)',
-    repo: 'vikhyatk/moondream2',
+    repo: 'moondream/moondream2-gguf',
     filename: 'moondream2-text-model-f16.gguf',
-    sizeBytes: 1048000000,
+    sizeBytes: 2839534976,
     downloadUrl:
-      'https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-text-model-f16.gguf',
+      'https://huggingface.co/moondream/moondream2-gguf/resolve/main/moondream2-text-model-f16.gguf',
     description:
       'Ultra-compact mobile vision model capable of visual Q&A, scene description, reading receipts, and image analysis.',
     quantLabel: 'F16',
@@ -63,8 +63,8 @@ export const MODEL_CATALOG: ModelDefinition[] = [
     isMultimodal: true,
     mmprojFilename: 'moondream2-mmproj-f16.gguf',
     mmprojUrl:
-      'https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-mmproj-f16.gguf',
-    mmprojSizeBytes: 260000000,
+      'https://huggingface.co/moondream/moondream2-gguf/resolve/main/moondream2-mmproj-f16.gguf',
+    mmprojSizeBytes: 909777984,
   },
 ];
 

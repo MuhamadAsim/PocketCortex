@@ -26,8 +26,8 @@
 | **Qwen 2.5 1.5B Instruct** | `Qwen/Qwen2.5-1.5B-Instruct-GGUF` | `qwen2.5-1.5b-instruct-q5_k_m.gguf` | `https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q5_k_m.gguf` |
 | **Llama 3.2 1B Instruct** | `bartowski/Llama-3.2-1B-Instruct-GGUF` | `Llama-3.2-1B-Instruct-Q4_K_M.gguf` | `https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf` |
 | **Gemma 3 1B Instruct** | `lm-kit/gemma-3-1b-instruct-gguf` | `gemma-3-it-1B-Q4_K_M.gguf` | `https://huggingface.co/lm-kit/gemma-3-1b-instruct-gguf/resolve/main/gemma-3-it-1B-Q4_K_M.gguf` |
-| **Moondream 2 (Vision)** | `vikhyatk/moondream2` | `moondream2-text-model-f16.gguf` | `https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-text-model-f16.gguf` |
-| **Moondream 2 (Vision Projector)** | `vikhyatk/moondream2` | `moondream2-mmproj-f16.gguf` | `https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-mmproj-f16.gguf` |
+| **Moondream 2 (Vision)** | `moondream/moondream2-gguf` | `moondream2-text-model-f16.gguf` | `https://huggingface.co/moondream/moondream2-gguf/resolve/main/moondream2-text-model-f16.gguf` |
+| **Moondream 2 (Vision Projector)** | `moondream/moondream2-gguf` | `moondream2-mmproj-f16.gguf` | `https://huggingface.co/moondream/moondream2-gguf/resolve/main/moondream2-mmproj-f16.gguf` |
 | **All-MiniLM-L6-v2 (Embedding)** | `leliuga/all-MiniLM-L6-v2-GGUF` | `all-MiniLM-L6-v2.Q4_K_M.gguf` | `https://huggingface.co/leliuga/all-MiniLM-L6-v2-GGUF/resolve/main/all-MiniLM-L6-v2.Q4_K_M.gguf` |
 
 ---
